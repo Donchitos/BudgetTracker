@@ -22,5 +22,14 @@
   "devDependencies": {
     "concurrently": "^7.0.0",
     "nodemon": "^2.0.15"
+  },
+  "dependencies": {
+    "@mui/x-date-pickers": "^7.28.3",
+    "chart.js": "^4.4.8",
+    "date-fns": "^4.1.0",
+    "react-beautiful-dnd": "^13.1.1",
+    "react-chartjs-2": "^5.3.0",
+    "react-color": "^2.19.3",
+    "react-colorful": "^5.6.1"
   }
 }

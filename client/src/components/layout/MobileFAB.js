@@ -16,6 +16,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SavingsIcon from '@mui/icons-material/Savings';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import CategoryIcon from '@mui/icons-material/Category';
+import QuickAddTransactionDialog from '../transactions/QuickAddTransactionDialog';
 
 /**
  * Mobile Floating Action Button component for quick actions
@@ -26,16 +27,23 @@ const MobileFAB = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
   
+  const handleQuickAddOpen = () => setQuickAddOpen(true);
+  const handleQuickAddClose = () => setQuickAddOpen(false);
+  
   // Common actions for quick access
   const actions = [
-    { 
-      icon: <AttachMoneyIcon />, 
-      name: 'Add Transaction', 
-      action: () => navigate('/transactions?new=true'),
+    {
+      icon: <AttachMoneyIcon />,
+      name: 'Add Transaction',
+      action: () => {
+        handleQuickAddOpen();
+        handleClose();
+      },
       color: theme.palette.primary.main
     },
     { 
@@ -120,6 +128,11 @@ const MobileFAB = () => {
           />
         ))}
       </SpeedDial>
+      {/* Quick Add Transaction Dialog */}
+      <QuickAddTransactionDialog
+        open={quickAddOpen}
+        onClose={handleQuickAddClose}
+      />
     </Box>
   );
 };
