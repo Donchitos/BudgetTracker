@@ -21,6 +21,9 @@ import BudgetTemplates from './pages/BudgetTemplates';
 import BudgetManagement from './pages/BudgetManagement';
 import RecurringTransactions from './pages/RecurringTransactions';
 import ImportExport from './pages/ImportExport';
+import Analytics from './pages/Analytics';
+import FinancialPlanning from './pages/FinancialPlanning';
+import Forecast from './pages/Forecast';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import NotFound from './pages/NotFound';
@@ -54,6 +57,9 @@ const App = () => {
             <Route path="recurring-transactions" element={<RecurringTransactions />} />
             <Route path="budget" element={<BudgetManagement />} />
             <Route path="import-export" element={<ImportExport />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="financial-planning" element={<FinancialPlanning />} />
+            <Route path="forecast" element={<Forecast />} />
           </Route>
         </Route>
       </Routes>

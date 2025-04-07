@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { Box, Typography, Grid } from '@mui/material';
+import { Box, Typography, Grid, useMediaQuery, useTheme } from '@mui/material';
 import SummaryCards from '../components/dashboard/SummaryCards';
 import ExpensePieChart from '../components/dashboard/ExpensePieChart';
+import MobileDashboard from '../components/dashboard/MobileDashboard';
+import { useIsMobile } from '../utils/responsiveUtils';
 import RecentTransactions from '../components/dashboard/RecentTransactions';
 import SpendingTrendsChart from '../components/dashboard/SpendingTrendsChart';
 import BudgetVsActualChart from '../components/dashboard/BudgetVsActualChart';
@@ -14,12 +16,20 @@ import { getTransactions } from '../redux/actions/transactionActions';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
+  const isMobile = useIsMobile();
   
   // Load data when component mounts (needed for charts)
   useEffect(() => {
     dispatch(getCategories());
     dispatch(getTransactions());
   }, [dispatch]);
+  
+  // Render mobile optimized dashboard on small screens
+  if (isMobile) {
+    return <MobileDashboard />;
+  }
+  
+  // Render regular dashboard on larger screens
   return (
     <Box>
       <Typography variant="h4" gutterBottom>

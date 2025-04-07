@@ -7,6 +7,8 @@ import billReducer from './billReducer';
 import savingsReducer from './savingsReducer';
 import budgetTemplateReducer from './budgetTemplateReducer';
 import recurringTransactionReducer from './recurringTransactionReducer';
+import analyticsReducer from './analyticsReducer';
+import forecastReducer from './forecastReducer';
 
 export default combineReducers({
   auth: authReducer,
@@ -16,5 +18,7 @@ export default combineReducers({
   bills: billReducer,
   savings: savingsReducer,
   budgetTemplates: budgetTemplateReducer,
-  recurringTransactions: recurringTransactionReducer
+  recurringTransactions: recurringTransactionReducer,
+  analytics: analyticsReducer,
+  forecast: forecastReducer
 });

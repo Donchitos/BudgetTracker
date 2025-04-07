@@ -27,6 +27,9 @@ const navItems = [
   { title: 'Savings', path: '/savings' },
   { title: 'Recurring', path: '/recurring-transactions' },
   { title: 'Reports', path: '/reports' },
+  { title: 'Analytics', path: '/analytics' },
+  { title: 'Financial Planning', path: '/financial-planning' },
+  { title: 'Forecast', path: '/forecast' },
   { title: 'Budget Templates', path: '/budget-templates' },
   { title: 'Import/Export', path: '/import-export' }
 ];

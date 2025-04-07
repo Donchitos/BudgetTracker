@@ -19,17 +19,22 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Grid
+  Grid,
+  Button
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { format } from 'date-fns';
+import { useIsMobile } from '../../utils/responsiveUtils';
+import MobileTransactionList, { MobileTransactionFilters } from './MobileTransactionList';
 
 // Import Redux actions
 import { getTransactions, deleteTransaction } from '../../redux/actions/transactionActions';
 
 const TransactionList = () => {
   const dispatch = useDispatch();
+  const isMobile = useIsMobile();
   const { transactions, pagination, loading, error } = useSelector(state => state.transactions);
   const { categories } = useSelector(state => state.categories);
   
@@ -42,6 +47,14 @@ const TransactionList = () => {
     page: 0,
     limit: 10
   });
+  
+  // State for mobile filter visibility
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  
+  // Toggle filters visibility for mobile view
+  const toggleFilters = () => {
+    setFiltersVisible(!filtersVisible);
+  };
   
   // Load transactions when component mounts
   useEffect(() => {
@@ -112,14 +125,28 @@ const TransactionList = () => {
     );
   }
   
+  // Conditionally render based on screen size
   return (
-    <Paper sx={{ p: 2, mb: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Transactions
-      </Typography>
+    <Paper sx={{ p: isMobile ? 1.5 : 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant={isMobile ? "h6" : "h5"} gutterBottom={!isMobile}>
+          Transactions
+        </Typography>
+        
+        {isMobile && (
+          <Button
+            startIcon={<FilterListIcon />}
+            size="small"
+            variant={filtersVisible ? "contained" : "outlined"}
+            onClick={toggleFilters}
+          >
+            Filters
+          </Button>
+        )}
+      </Box>
       
-      {/* Filters */}
-      <Box sx={{ mb: 3 }}>
+      {/* Filters - Desktop Version */}
+      {!isMobile && <Box sx={{ mb: 3 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
@@ -187,66 +214,86 @@ const TransactionList = () => {
         </Grid>
       </Box>
       
-      {/* Transactions Table */}
-      <TableContainer>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Date</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {transactions.length === 0 ? (
+      {/* Mobile Filters */}
+      {isMobile && (
+        <MobileTransactionFilters
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          categories={categories}
+          filtersVisible={filtersVisible}
+          toggleFilters={toggleFilters}
+        />
+      )}
+      
+      {/* Mobile Transaction Cards */}
+      {isMobile ? (
+        <MobileTransactionList
+          transactions={transactions}
+          onDelete={handleDelete}
+          onEdit={(transaction) => console.log('Edit transaction', transaction)}
+        />
+      ) : (
+        /* Desktop Transactions Table */
+        <TableContainer>
+          <Table>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={6} align="center">
-                  No transactions found
-                </TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Category</TableCell>
+                <TableCell align="right">Amount</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
-            ) : (
-              transactions.map(transaction => (
-                <TableRow key={transaction._id}>
-                  <TableCell>{formatDate(transaction.date)}</TableCell>
-                  <TableCell>{transaction.description}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={transaction.type} 
-                      color={transaction.type === 'income' ? 'success' : 'error'}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {transaction.category ? transaction.category.name : '-'}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography 
-                      color={transaction.type === 'income' ? 'success.main' : 'error.main'}
-                    >
-                      {formatAmount(transaction.amount)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton size="small" color="primary">
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton 
-                      size="small" 
-                      color="error"
-                      onClick={() => handleDelete(transaction._id)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+            </TableHead>
+            <TableBody>
+              {transactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">
+                    No transactions found
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              ) : (
+                transactions.map(transaction => (
+                  <TableRow key={transaction._id}>
+                    <TableCell>{formatDate(transaction.date)}</TableCell>
+                    <TableCell>{transaction.description}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={transaction.type}
+                        color={transaction.type === 'income' ? 'success' : 'error'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {transaction.category ? transaction.category.name : '-'}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        color={transaction.type === 'income' ? 'success.main' : 'error.main'}
+                      >
+                        {formatAmount(transaction.amount)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton size="small" color="primary">
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDelete(transaction._id)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
       
       {/* Pagination */}
       {pagination && (

@@ -149,6 +149,8 @@ app.use('/api/dashboard', require('./routes/dashboard.routes'));
 app.use('/api/recurring-transactions', require('./routes/recurringTransaction.routes'));
 app.use('/api/import', require('./routes/importExport.routes'));
 app.use('/api/export', require('./routes/importExport.routes'));
+app.use('/api/analytics', require('./routes/analytics.routes'));
+app.use('/api/forecast', require('./routes/forecast.routes'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
