@@ -14,6 +14,10 @@ import PrivateRoute from './components/routes/PrivateRoute';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Categories from './pages/Categories';
+import Bills from './pages/Bills';
+import Savings from './pages/Savings';
+import Reports from './pages/Reports';
+import BudgetTemplates from './pages/BudgetTemplates';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import NotFound from './pages/NotFound';
@@ -40,6 +44,10 @@ const App = () => {
             <Route index element={<Dashboard />} />
             <Route path="transactions" element={<Transactions />} />
             <Route path="categories" element={<Categories />} />
+            <Route path="bills" element={<Bills />} />
+            <Route path="savings" element={<Savings />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="budget-templates" element={<BudgetTemplates />} />
           </Route>
         </Route>
       </Routes>

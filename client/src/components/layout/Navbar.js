@@ -21,7 +21,11 @@ import { logout } from '../../redux/actions/authActions';
 const navItems = [
   { title: 'Dashboard', path: '/' },
   { title: 'Transactions', path: '/transactions' },
-  { title: 'Categories', path: '/categories' }
+  { title: 'Categories', path: '/categories' },
+  { title: 'Bills', path: '/bills' },
+  { title: 'Savings', path: '/savings' },
+  { title: 'Reports', path: '/reports' },
+  { title: 'Budget Templates', path: '/budget-templates' }
 ];
 
 const Navbar = () => {

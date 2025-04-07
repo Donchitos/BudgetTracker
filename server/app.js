@@ -137,11 +137,15 @@ app.get('/api/dashboard/expense-breakdown', (req, res) => {
   });
 });
 
-// Original routes (commented out for remote testing)
-// app.use('/api/auth', require('./routes/auth.routes'));
-// app.use('/api/categories', require('./routes/category.routes'));
-// app.use('/api/transactions', require('./routes/transaction.routes'));
-// app.use('/api/dashboard', require('./routes/dashboard.routes'));
+// Routes
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/categories', require('./routes/category.routes'));
+app.use('/api/transactions', require('./routes/transaction.routes'));
+app.use('/api/bills', require('./routes/bill.routes'));
+app.use('/api/savings', require('./routes/savingsGoal.routes'));
+app.use('/api/budget-templates', require('./routes/budgetTemplate.routes'));
+app.use('/api/reports', require('./routes/report.routes'));
+app.use('/api/dashboard', require('./routes/dashboard.routes'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
