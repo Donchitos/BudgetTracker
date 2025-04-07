@@ -1,8 +1,12 @@
 import { combineReducers } from 'redux';
 import authReducer from './authReducer';
-// We'll add more reducers as we develop them
+import categoryReducer from './categoryReducer';
+import transactionReducer from './transactionReducer';
+import dashboardReducer from './dashboardReducer';
 
 export default combineReducers({
   auth: authReducer,
-  // Additional reducers will be added here
+  categories: categoryReducer,
+  transactions: transactionReducer,
+  dashboard: dashboardReducer
 });

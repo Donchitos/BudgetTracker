@@ -16,8 +16,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
-// We'll implement this action later
-// import { logout } from '../../redux/actions/authActions';
+import { logout } from '../../redux/actions/authActions';
 
 const navItems = [
   { title: 'Dashboard', path: '/' },
@@ -50,8 +49,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     handleCloseUserMenu();
-    // dispatch(logout());
-    // We'll implement this action later
+    dispatch(logout());
   };
 
   const authLinks = (

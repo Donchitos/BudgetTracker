@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Avatar,
   Button,
@@ -17,12 +17,12 @@ import {
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
-// We'll implement this action later
-// import { login } from '../../redux/actions/authActions';
+import { login } from '../../redux/actions/authActions';
 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { loading, error: authError } = useSelector(state => state.auth);
   
   const [formData, setFormData] = useState({
     email: '',
@@ -42,6 +42,13 @@ const Login = () => {
     });
   };
   
+  // Use authError from Redux store when component mounts
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
+  
   const onSubmit = async e => {
     e.preventDefault();
     setError(null);
@@ -51,16 +58,12 @@ const Login = () => {
       return;
     }
     
-    // We'll implement this action later
-    // try {
-    //   await dispatch(login(email, password));
-    //   navigate('/');
-    // } catch (err) {
-    //   setError(err.response?.data?.message || 'Login failed');
-    // }
-
-    // For now, just log the data
-    console.log('Login Form Submitted:', { email, password, rememberMe });
+    try {
+      await dispatch(login(email, password));
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Login failed');
+    }
   };
   
   return (

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Avatar,
   Button,
@@ -15,12 +15,12 @@ import {
 } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
-// We'll implement this action later
-// import { register } from '../../redux/actions/authActions';
-
+import { register } from '../../redux/actions/authActions';
 const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { loading, error: authError } = useSelector(state => state.auth);
+  
   
   const [formData, setFormData] = useState({
     name: '',
@@ -39,6 +39,13 @@ const Register = () => {
       [e.target.name]: e.target.value
     });
   };
+  
+  // Use authError from Redux store when component mounts
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
   
   const onSubmit = async e => {
     e.preventDefault();
@@ -60,16 +67,12 @@ const Register = () => {
       return;
     }
     
-    // We'll implement this action later
-    // try {
-    //   await dispatch(register({ name, email, password }));
-    //   navigate('/');
-    // } catch (err) {
-    //   setError(err.response?.data?.message || 'Registration failed');
-    // }
-
-    // For now, just log the data
-    console.log('Register Form Submitted:', { name, email, password });
+    try {
+      await dispatch(register({ name, email, password }));
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Registration failed');
+    }
   };
   
   return (
