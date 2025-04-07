@@ -1,255 +1,279 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
+  Container,
+  Grid,
   Typography,
+  Paper,
+  Tabs,
+  Tab,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
+  Divider,
+  Menu,
   MenuItem,
-  FormHelperText
+  ListItemIcon,
+  ListItemText,
+  Tooltip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-
+import TuneIcon from '@mui/icons-material/Tune';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import SettingsIcon from '@mui/icons-material/Settings';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import CategoryIcon from '@mui/icons-material/Category';
 import TransactionList from '../components/transactions/TransactionList';
+import AdvancedSearchPanel from '../components/transactions/AdvancedSearchPanel';
+import AdvancedTransactionForm from '../components/transactions/AdvancedTransactionForm';
+import CustomFieldsManager from '../components/transactions/CustomFieldsManager';
+import { getTransactions } from '../redux/actions/transactionActions';
 import { getCategories } from '../redux/actions/categoryActions';
-import { addTransaction } from '../redux/actions/transactionActions';
 
+/**
+ * Transactions page
+ * 
+ * Main page for transaction management with advanced features
+ */
 const Transactions = () => {
   const dispatch = useDispatch();
-  const { categories, loading: categoriesLoading } = useSelector(state => state.categories);
   
-  // Local state for the new transaction dialog
-  const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    description: '',
-    amount: '',
-    type: 'expense',
-    date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
-    category: '',
-    notes: ''
+  // State variables
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [currentTab, setCurrentTab] = useState('all');
+  
+  // Transaction filters
+  const [filters, setFilters] = useState({
+    dateRange: {
+      startDate: null,
+      endDate: null
+    },
+    categories: [],
+    types: ['expense', 'income'],
+    minAmount: '',
+    maxAmount: '',
+    searchQuery: '',
+    tags: [],
+    customFields: {}
   });
-  const [errors, setErrors] = useState({});
   
-  // Load categories when component mounts
+  // Load data
   useEffect(() => {
+    dispatch(getTransactions());
     dispatch(getCategories());
   }, [dispatch]);
   
-  // Handle dialog open and close
-  const handleOpen = () => {
-    setOpen(true);
-  };
-  
-  const handleClose = () => {
-    setOpen(false);
-    // Reset form data and errors
-    setFormData({
-      description: '',
-      amount: '',
-      type: 'expense',
-      date: new Date().toISOString().split('T')[0],
-      category: '',
-      notes: ''
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setCurrentTab(newValue);
+    
+    // Update type filter based on tab
+    let types = [];
+    switch (newValue) {
+      case 'expenses':
+        types = ['expense'];
+        break;
+      case 'income':
+        types = ['income'];
+        break;
+      case 'transfers':
+        types = ['transfer'];
+        break;
+      default:
+        types = ['expense', 'income', 'transfer'];
+    }
+    
+    setFilters({
+      ...filters,
+      types
     });
-    setErrors({});
   };
   
-  // Handle form input changes
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when field is updated
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+  // Toggle advanced search panel
+  const toggleSearchPanel = () => {
+    setSearchOpen(!searchOpen);
   };
   
-  // Validate form
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    }
-    
-    if (!formData.amount || isNaN(formData.amount) || parseFloat(formData.amount) <= 0) {
-      newErrors.amount = 'Valid amount is required';
-    }
-    
-    if (!formData.date) {
-      newErrors.date = 'Date is required';
-    }
-    
-    if (formData.type === 'expense' && !formData.category) {
-      newErrors.category = 'Category is required for expenses';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  // Toggle transaction form
+  const handleAddTransaction = () => {
+    setFormOpen(true);
   };
   
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    try {
-      // Format amount as a number
-      const transactionData = {
-        ...formData,
-        amount: parseFloat(formData.amount)
-      };
-      
-      await dispatch(addTransaction(transactionData));
-      handleClose();
-    } catch (err) {
-      console.error('Error adding transaction:', err);
-    }
+  // Handle menu open
+  const handleMenuOpen = (event) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+  
+  // Handle menu close
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+  
+  // Handle custom fields manager
+  const handleCustomFieldsManager = () => {
+    setCustomFieldsOpen(true);
+    handleMenuClose();
+  };
+  
+  // Handle filter update
+  const handleFilterUpdate = (newFilters) => {
+    setFilters({
+      ...filters,
+      ...newFilters
+    });
   };
   
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Transactions
-        </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          startIcon={<AddIcon />}
-          onClick={handleOpen}
-        >
-          Add Transaction
-        </Button>
-      </Box>
-      
-      <TransactionList />
-      
-      {/* Add Transaction Dialog */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Transaction</DialogTitle>
-        <DialogContent>
-          <Box component="form" sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="description"
-              label="Description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              error={!!errors.description}
-              helperText={errors.description}
-              autoFocus
-            />
+    <Container maxWidth="lg">
+      <Box sx={{ mb: 4 }}>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={8}>
+            <Typography variant="h4" gutterBottom>
+              Transactions
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              View, search, and manage all your financial transactions in one place.
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleAddTransaction}
+              sx={{ mr: 1 }}
+            >
+              Add Transaction
+            </Button>
             
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="amount"
-              label="Amount"
-              name="amount"
-              type="number"
-              inputProps={{ min: 0, step: 0.01 }}
-              value={formData.amount}
-              onChange={handleChange}
-              error={!!errors.amount}
-              helperText={errors.amount}
-            />
-            
-            <FormControl fullWidth margin="normal" required>
-              <InputLabel id="type-label">Type</InputLabel>
-              <Select
-                labelId="type-label"
-                id="type"
-                name="type"
-                value={formData.type}
-                label="Type"
-                onChange={handleChange}
+            <Tooltip title="Transaction Options">
+              <Button
+                variant="outlined"
+                size="medium"
+                onClick={handleMenuOpen}
               >
-                <MenuItem value="income">Income</MenuItem>
-                <MenuItem value="expense">Expense</MenuItem>
-              </Select>
-            </FormControl>
+                <MoreVertIcon />
+              </Button>
+            </Tooltip>
             
-            {formData.type === 'expense' && (
-              <FormControl 
-                fullWidth 
-                margin="normal" 
-                required
-                error={!!errors.category}
-              >
-                <InputLabel id="category-label">Category</InputLabel>
-                <Select
-                  labelId="category-label"
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  label="Category"
-                  onChange={handleChange}
-                  disabled={categoriesLoading}
-                >
-                  {categories && categories.map(category => (
-                    <MenuItem key={category._id} value={category._id}>
-                      {category.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {errors.category && (
-                  <FormHelperText>{errors.category}</FormHelperText>
-                )}
-              </FormControl>
-            )}
-            
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="date"
-              label="Date"
-              name="date"
-              type="date"
-              value={formData.date}
-              onChange={handleChange}
-              InputLabelProps={{
-                shrink: true,
+            <Menu
+              anchorEl={menuAnchorEl}
+              open={Boolean(menuAnchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem onClick={toggleSearchPanel}>
+                <ListItemIcon>
+                  <TuneIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Advanced Search</ListItemText>
+              </MenuItem>
+              
+              <MenuItem onClick={handleCustomFieldsManager}>
+                <ListItemIcon>
+                  <CategoryIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Custom Fields</ListItemText>
+              </MenuItem>
+              
+              <Divider />
+              
+              <MenuItem>
+                <ListItemIcon>
+                  <FileDownloadIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Export Transactions</ListItemText>
+              </MenuItem>
+              
+              <MenuItem>
+                <ListItemIcon>
+                  <SettingsIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Transaction Settings</ListItemText>
+              </MenuItem>
+            </Menu>
+          </Grid>
+        </Grid>
+        
+        <Paper sx={{ mb: 3 }}>
+          <Tabs 
+            value={currentTab} 
+            onChange={handleTabChange}
+            indicatorColor="primary"
+            textColor="primary"
+            variant="fullWidth"
+          >
+            <Tab label="All Transactions" value="all" />
+            <Tab label="Expenses" value="expenses" />
+            <Tab label="Income" value="income" />
+            <Tab label="Transfers" value="transfers" />
+          </Tabs>
+        </Paper>
+        
+        {searchOpen && (
+          <AdvancedSearchPanel 
+            filters={filters} 
+            onFilterChange={handleFilterUpdate} 
+            onClose={toggleSearchPanel} 
+          />
+        )}
+        
+        <TransactionList
+          filters={filters}
+          onFilterChange={handleFilterUpdate}
+        />
+        
+        {/* Transaction Form Dialog */}
+        <AdvancedTransactionForm
+          open={formOpen}
+          onClose={() => setFormOpen(false)}
+        />
+        
+        {/* Custom Fields Manager Dialog */}
+        {customFieldsOpen && (
+          <Box 
+            sx={{ 
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              bgcolor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 1300,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              p: 3
+            }}
+            onClick={() => setCustomFieldsOpen(false)}
+          >
+            <Box 
+              sx={{ 
+                maxWidth: 800,
+                width: '100%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                borderRadius: 1,
+                boxShadow: 24
               }}
-              error={!!errors.date}
-              helperText={errors.date}
-            />
-            
-            <TextField
-              margin="normal"
-              fullWidth
-              id="notes"
-              label="Notes (Optional)"
-              name="notes"
-              multiline
-              rows={2}
-              value={formData.notes}
-              onChange={handleChange}
-            />
+              onClick={e => e.stopPropagation()}
+            >
+              <CustomFieldsManager />
+              
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2, bgcolor: 'background.paper' }}>
+                <Button 
+                  variant="contained" 
+                  onClick={() => setCustomFieldsOpen(false)}
+                >
+                  Close
+                </Button>
+              </Box>
+            </Box>
           </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">Add Transaction</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+        )}
+      </Box>
+    </Container>
   );
 };
 

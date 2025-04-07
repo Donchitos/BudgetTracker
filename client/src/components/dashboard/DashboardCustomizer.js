@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { 
-  Box, 
   Button, 
   Dialog, 
   DialogTitle, 
@@ -14,7 +12,6 @@ import {
   ListItemText,
   ListItemIcon,
   Switch,
-  Divider,
   Tooltip,
   Paper
 } from '@mui/material';
@@ -34,8 +31,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
  * 2. Showing/hiding specific widgets
  * 3. Saving preferences for future sessions
  */
-const DashboardCustomizer = () => {
-  const dispatch = useDispatch();
+const DashboardCustomizer = ({ widgets: propWidgets, onToggleWidget, onSave }) => {
   const [open, setOpen] = useState(false);
   
   // Default dashboard widgets configuration
@@ -50,24 +46,19 @@ const DashboardCustomizer = () => {
     { id: 'spending-trends', name: 'Spending Trends', visible: true }
   ];
   
-  // State for widget configuration
-  const [widgets, setWidgets] = useState(defaultWidgets);
+  // State for widget configuration - use props if provided
+  const [widgets, setWidgets] = useState(propWidgets || defaultWidgets);
+  
+  // Update internal state when props change
+  useEffect(() => {
+    if (propWidgets) {
+      setWidgets(propWidgets);
+    }
+  }, [propWidgets]);
   
   // Handle dialog open/close
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  
-  // Load saved dashboard preferences from localStorage
-  useEffect(() => {
-    const savedPreferences = localStorage.getItem('dashboardPreferences');
-    if (savedPreferences) {
-      try {
-        setWidgets(JSON.parse(savedPreferences));
-      } catch (err) {
-        console.error('Error loading dashboard preferences:', err);
-      }
-    }
-  }, []);
   
   // Handle drag and drop reordering
   const handleDragEnd = (result) => {
@@ -82,9 +73,14 @@ const DashboardCustomizer = () => {
   
   // Toggle widget visibility
   const toggleWidgetVisibility = (id) => {
-    setWidgets(widgets.map(widget => 
-      widget.id === id ? { ...widget, visible: !widget.visible } : widget
-    ));
+    // Use the prop callback if provided, otherwise handle locally
+    if (onToggleWidget) {
+      onToggleWidget(id);
+    } else {
+      setWidgets(widgets.map(widget => 
+        widget.id === id ? { ...widget, visible: !widget.visible } : widget
+      ));
+    }
   };
   
   // Reset to defaults
@@ -95,18 +91,18 @@ const DashboardCustomizer = () => {
   // Save preferences
   const savePreferences = () => {
     try {
-      localStorage.setItem('dashboardPreferences', JSON.stringify(widgets));
-      // You could also save to the database via an API call if needed
+      // Use the prop callback if provided, otherwise handle locally
+      if (onSave) {
+        onSave(widgets);
+      } else {
+        localStorage.setItem('dashboardPreferences', JSON.stringify(widgets));
+        
+        // For direct approach of reloading the dashboard components
+        window.dispatchEvent(new CustomEvent('dashboardPreferencesUpdated', { 
+          detail: { widgets } 
+        }));
+      }
       handleClose();
-      
-      // Dispatch event to update dashboard layout
-      // This assumes you have a Redux action for updating dashboard layout
-      // dispatch(updateDashboardLayout(widgets));
-      
-      // For now, we'll use a direct approach of reloading the dashboard components
-      window.dispatchEvent(new CustomEvent('dashboardPreferencesUpdated', { 
-        detail: { widgets } 
-      }));
     } catch (err) {
       console.error('Error saving dashboard preferences:', err);
     }

@@ -1,129 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-import {
-  Box,
-  Typography,
-  Grid,
-  Button,
-  Card,
-  CardContent,
-  Tabs,
-  Tab
-} from '@mui/material';
-import { getCategories } from '../redux/actions/categoryActions';
-import { getTransactions } from '../redux/actions/transactionActions';
+import React from 'react';
+import { Box, Typography, Container, Tabs, Tab, Paper, Divider, Button, Grid } from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
+import AddIcon from '@mui/icons-material/Add';
 import MonthlyBudgetCycle from '../components/budget/MonthlyBudgetCycle';
 import BudgetAdjustmentTool from '../components/budget/BudgetAdjustmentTool';
-import { Link } from 'react-router-dom';
+import BudgetVsActualChart from '../components/dashboard/BudgetVsActualChart';
+import CategoryBudgetAlerts from '../components/dashboard/CategoryBudgetAlerts';
 
+/**
+ * BudgetManagement page
+ * 
+ * Combines all budget-related features in one centralized location, including:
+ * - Monthly budget cycle tracking
+ * - Budget vs. actual visualizations
+ * - Category budget alerts
+ * - Budget adjustment tools
+ */
 const BudgetManagement = () => {
-  const dispatch = useDispatch();
-  const [activeTab, setActiveTab] = useState(0);
-  
-  // Load data when component mounts
-  useEffect(() => {
-    dispatch(getCategories());
-    dispatch(getTransactions());
-  }, [dispatch]);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentTab = location.hash ? location.hash.substring(1) : 'overview';
   
   // Handle tab change
   const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
+    navigate(`#${newValue}`);
   };
-
+  
+  // Navigate to budget templates page
+  const handleNavigateToTemplates = () => {
+    navigate('/budget-templates');
+  };
+  
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Budget Management
+    <Container maxWidth="lg">
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h4">Budget Management</Typography>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={handleNavigateToTemplates}
+          >
+            Budget Templates
+          </Button>
+        </Box>
+        
+        <Typography variant="body1" color="text.secondary" paragraph>
+          Manage your budget cycles, track spending against budget, and receive alerts when approaching limits.
         </Typography>
-        <Button
-          variant="contained"
-          component={Link}
-          to="/categories"
-        >
-          Manage Categories
-        </Button>
-      </Box>
-      
-      {/* Tabs for different budget tools */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          aria-label="budget management tabs"
-        >
-          <Tab label="Monthly Budget Cycle" />
-          <Tab label="Budget Adjustment Tool" />
-        </Tabs>
-      </Box>
-      
-      <Grid container spacing={3}>
-        {/* Conditional rendering based on active tab */}
-        {activeTab === 0 ? (
-          <Grid item xs={12}>
+        
+        <Paper sx={{ mb: 3 }}>
+          <Tabs 
+            value={currentTab} 
+            onChange={handleTabChange}
+            indicatorColor="primary"
+            textColor="primary"
+            variant="fullWidth"
+          >
+            <Tab label="Overview" value="overview" />
+            <Tab label="Adjust Budget" value="adjust" />
+            <Tab label="Analysis" value="analysis" />
+          </Tabs>
+        </Paper>
+        
+        {/* Overview Tab */}
+        {currentTab === 'overview' && (
+          <Box>
+            <CategoryBudgetAlerts />
             <MonthlyBudgetCycle />
-          </Grid>
-        ) : (
-          <Grid item xs={12}>
-            <BudgetAdjustmentTool />
-          </Grid>
+            <BudgetVsActualChart />
+          </Box>
         )}
         
-        {/* Quick links to budget-related features */}
-        <Grid item xs={12} sx={{ mt: 3 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Budget Tools
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth
-                    component={Link}
-                    to="/budget-templates"
-                  >
-                    Budget Templates
-                  </Button>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth
-                    component={Link}
-                    to="/reports"
-                  >
-                    Budget Reports
-                  </Button>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth
-                    component={Link}
-                    to="/transactions"
-                  >
-                    Transactions
-                  </Button>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth
-                    component={Link}
-                    to="/"
-                  >
-                    Dashboard
-                  </Button>
-                </Grid>
+        {/* Adjust Budget Tab */}
+        {currentTab === 'adjust' && (
+          <Box>
+            <BudgetAdjustmentTool />
+          </Box>
+        )}
+        
+        {/* Analysis Tab */}
+        {currentTab === 'analysis' && (
+          <Box>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <BudgetVsActualChart />
               </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    </Box>
+              
+              <Grid item xs={12}>
+                <Paper sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom>Budget Efficiency</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="body1">
+                    Advanced budget analysis features will be available in a future update. Stay tuned!
+                  </Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+      </Box>
+    </Container>
   );
 };
 

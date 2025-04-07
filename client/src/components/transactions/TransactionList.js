@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
-  Typography,
   Paper,
   Table,
   TableBody,
@@ -11,305 +10,448 @@ import {
   TableHead,
   TableRow,
   TablePagination,
+  Typography,
   IconButton,
   Chip,
-  CircularProgress,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
+  Checkbox,
+  Tooltip,
+  Button,
+  Menu,
   MenuItem,
-  Grid,
-  Button
+  TextField,
+  InputAdornment,
+  CircularProgress,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import FilterListIcon from '@mui/icons-material/FilterList';
+import EditIcon from '@mui/icons-material/Edit';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import SearchIcon from '@mui/icons-material/Search';
+import TuneIcon from '@mui/icons-material/Tune';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { format } from 'date-fns';
-import { useIsMobile } from '../../utils/responsiveUtils';
-import MobileTransactionList, { MobileTransactionFilters } from './MobileTransactionList';
-
-// Import Redux actions
 import { getTransactions, deleteTransaction } from '../../redux/actions/transactionActions';
+import AdvancedTransactionForm from './AdvancedTransactionForm';
+import BulkEditDialog from './BulkEditDialog';
 
-const TransactionList = () => {
+/**
+ * TransactionList component
+ * 
+ * Displays a list of transactions with filtering, sorting, and bulk edit capabilities
+ */
+const TransactionList = ({ filters, onFilterChange }) => {
   const dispatch = useDispatch();
-  const isMobile = useIsMobile();
-  const { transactions, pagination, loading, error } = useSelector(state => state.transactions);
+  const { transactions, loading } = useSelector(state => state.transactions);
   const { categories } = useSelector(state => state.categories);
   
-  // Local state for filters
-  const [filters, setFilters] = useState({
-    type: '',
-    category: '',
-    startDate: '',
-    endDate: '',
-    page: 0,
-    limit: 10
-  });
+  // Local state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTransactions, setSelectedTransactions] = useState([]);
+  const [editTransaction, setEditTransaction] = useState(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuTransaction, setActionMenuTransaction] = useState(null);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
   
-  // State for mobile filter visibility
-  const [filtersVisible, setFiltersVisible] = useState(false);
-  
-  // Toggle filters visibility for mobile view
-  const toggleFilters = () => {
-    setFiltersVisible(!filtersVisible);
-  };
-  
-  // Load transactions when component mounts
+  // Load transactions
   useEffect(() => {
-    dispatch(getTransactions(filters));
-  }, [dispatch, filters]);
+    dispatch(getTransactions());
+  }, [dispatch]);
   
-  // Handle pagination change
-  const handlePageChange = (event, newPage) => {
-    setFilters(prev => ({ ...prev, page: newPage }));
+  // Handle page change
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
   };
   
   // Handle rows per page change
-  const handleLimitChange = (event) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      limit: parseInt(event.target.value, 10),
-      page: 0 
-    }));
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
   
-  // Handle filter changes
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ 
-      ...prev, 
-      [name]: value,
-      page: 0 // Reset page when filters change
-    }));
+  // Handle search query change
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    setPage(0);
   };
   
-  // Handle transaction deletion
-  const handleDelete = async (id) => {
-    try {
-      await dispatch(deleteTransaction(id));
-      // Refresh transaction list
-      dispatch(getTransactions(filters));
-    } catch (err) {
-      console.error('Error deleting transaction:', err);
+  // Handle transaction selection
+  const handleSelectTransaction = (transaction) => {
+    const selectedIndex = selectedTransactions.findIndex(t => t._id === transaction._id);
+    let newSelected = [];
+    
+    if (selectedIndex === -1) {
+      newSelected = [...selectedTransactions, transaction];
+    } else {
+      newSelected = selectedTransactions.filter(t => t._id !== transaction._id);
+    }
+    
+    setSelectedTransactions(newSelected);
+  };
+  
+  // Handle select all transactions
+  const handleSelectAllTransactions = (event) => {
+    if (event.target.checked) {
+      setSelectedTransactions(filteredTransactions);
+    } else {
+      setSelectedTransactions([]);
     }
   };
   
-  // Format currency amount
-  const formatAmount = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+  // Handle transaction edit
+  const handleEditTransaction = (transaction) => {
+    setEditTransaction(transaction);
+    setActionMenuAnchorEl(null);
   };
   
-  // Format date
-  const formatDate = (dateString) => {
-    return format(new Date(dateString), 'MMM dd, yyyy');
+  // Handle transaction duplicate
+  const handleDuplicateTransaction = (transaction) => {
+    const duplicatedTransaction = {
+      ...transaction,
+      description: `Copy of ${transaction.description}`,
+      _id: null
+    };
+    setEditTransaction(duplicatedTransaction);
+    setActionMenuAnchorEl(null);
   };
   
-  if (loading && !transactions.length) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  // Handle transaction delete
+  const handleDeleteTransaction = (transactionId) => {
+    if (window.confirm('Are you sure you want to delete this transaction?')) {
+      dispatch(deleteTransaction(transactionId));
+    }
+    setActionMenuAnchorEl(null);
+  };
   
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Typography color="error">Error: {error}</Typography>
-      </Box>
-    );
-  }
+  // Handle bulk actions menu open
+  const handleMenuOpen = (event) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
   
-  // Conditionally render based on screen size
+  // Handle bulk actions menu close
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+  
+  // Handle transaction action menu open
+  const handleActionMenuOpen = (event, transaction) => {
+    event.stopPropagation();
+    setActionMenuTransaction(transaction);
+    setActionMenuAnchorEl(event.currentTarget);
+  };
+  
+  // Handle transaction action menu close
+  const handleActionMenuClose = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuTransaction(null);
+  };
+  
+  // Handle bulk edit
+  const handleBulkEdit = () => {
+    setShowBulkEdit(true);
+    handleMenuClose();
+  };
+  
+  // Handle bulk delete
+  const handleBulkDelete = () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedTransactions.length} transaction(s)?`)) {
+      selectedTransactions.forEach(transaction => {
+        dispatch(deleteTransaction(transaction._id));
+      });
+      setSelectedTransactions([]);
+    }
+    handleMenuClose();
+  };
+  
+  // Get category name by ID
+  const getCategoryName = (categoryId) => {
+    const category = categories?.find(c => c._id === categoryId);
+    return category ? category.name : 'Uncategorized';
+  };
+  
+  // Filter transactions based on search query and other filters
+  const filteredTransactions = transactions?.filter(transaction => {
+    // Search query filter
+    if (searchQuery && !transaction.description.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    
+    // Apply additional filters if provided
+    if (filters) {
+      // Transaction type filter
+      if (filters.types && filters.types.length > 0 && !filters.types.includes(transaction.type)) {
+        return false;
+      }
+      
+      // Category filter
+      if (filters.categories && filters.categories.length > 0 && !filters.categories.includes(transaction.category)) {
+        return false;
+      }
+      
+      // Date range filter
+      if (filters.dateRange) {
+        if (filters.dateRange.startDate && new Date(transaction.date) < new Date(filters.dateRange.startDate)) {
+          return false;
+        }
+        if (filters.dateRange.endDate && new Date(transaction.date) > new Date(filters.dateRange.endDate)) {
+          return false;
+        }
+      }
+      
+      // Amount range filter
+      if (filters.minAmount && transaction.amount < parseFloat(filters.minAmount)) {
+        return false;
+      }
+      if (filters.maxAmount && transaction.amount > parseFloat(filters.maxAmount)) {
+        return false;
+      }
+      
+      // Tags filter
+      if (filters.tags && filters.tags.length > 0) {
+        const transactionTags = transaction.tags || [];
+        if (!filters.tags.some(tag => transactionTags.includes(tag))) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  }) || [];
+  
+  // Slice transactions for pagination
+  const paginatedTransactions = filteredTransactions.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+  
+  // Check if a transaction is selected
+  const isSelected = (transactionId) => {
+    return selectedTransactions.findIndex(t => t._id === transactionId) !== -1;
+  };
+  
   return (
-    <Paper sx={{ p: isMobile ? 1.5 : 2, mb: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant={isMobile ? "h6" : "h5"} gutterBottom={!isMobile}>
-          Transactions
-        </Typography>
+    <Box>
+      {/* Toolbar */}
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+        <TextField
+          placeholder="Search transactions..."
+          variant="outlined"
+          size="small"
+          value={searchQuery}
+          onChange={handleSearchChange}
+          sx={{ flexGrow: 1, maxWidth: 400 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
         
-        {isMobile && (
-          <Button
-            startIcon={<FilterListIcon />}
-            size="small"
-            variant={filtersVisible ? "contained" : "outlined"}
-            onClick={toggleFilters}
-          >
-            Filters
-          </Button>
+        <Button
+          variant="outlined"
+          startIcon={<TuneIcon />}
+          size="small"
+          onClick={() => onFilterChange && onFilterChange({ showAdvancedSearch: true })}
+        >
+          Filters
+        </Button>
+        
+        {selectedTransactions.length > 0 && (
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleMenuOpen}
+              startIcon={<MoreVertIcon />}
+            >
+              Bulk Actions ({selectedTransactions.length})
+            </Button>
+            
+            <Menu
+              anchorEl={menuAnchorEl}
+              open={Boolean(menuAnchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem onClick={handleBulkEdit}>
+                <ListItemIcon>
+                  <EditIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Edit Selected</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleBulkDelete}>
+                <ListItemIcon>
+                  <DeleteIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Delete Selected</ListItemText>
+              </MenuItem>
+            </Menu>
+          </>
         )}
       </Box>
       
-      {/* Filters - Desktop Version */}
-      {!isMobile && (
-        <Box sx={{ mb: 3 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="type-filter-label">Type</InputLabel>
-                <Select
-                  labelId="type-filter-label"
-                  name="type"
-                  value={filters.type}
-                  label="Type"
-                  onChange={handleFilterChange}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="income">Income</MenuItem>
-                  <MenuItem value="expense">Expense</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="category-filter-label">Category</InputLabel>
-                <Select
-                  labelId="category-filter-label"
-                  name="category"
-                  value={filters.category}
-                  label="Category"
-                  onChange={handleFilterChange}
-                  disabled={!categories || categories.length === 0}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {categories && categories.map(category => (
-                    <MenuItem key={category._id} value={category._id}>
-                      {category.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                name="startDate"
-                label="Start Date"
-                type="date"
-                value={filters.startDate}
-                onChange={handleFilterChange}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                size="small"
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                name="endDate"
-                label="End Date"
-                type="date"
-                value={filters.endDate}
-                onChange={handleFilterChange}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                size="small"
-              />
-            </Grid>
-          </Grid>
-        </Box>
-      )}
-      
-      {/* Mobile Filters */}
-      {isMobile && (
-        <MobileTransactionFilters
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          categories={categories}
-          filtersVisible={filtersVisible}
-          toggleFilters={toggleFilters}
-        />
-      )}
-      
-      {/* Mobile Transaction Cards */}
-      {isMobile ? (
-        <MobileTransactionList
-          transactions={transactions}
-          onDelete={handleDelete}
-          onEdit={(transaction) => console.log('Edit transaction', transaction)}
-        />
-      ) : (
-        /* Desktop Transactions Table */
-        <TableContainer>
-          <Table>
-            <TableHead>
+      {/* Transaction table */}
+      <TableContainer component={Paper} sx={{ mb: 2 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  indeterminate={selectedTransactions.length > 0 && selectedTransactions.length < filteredTransactions.length}
+                  checked={filteredTransactions.length > 0 && selectedTransactions.length === filteredTransactions.length}
+                  onChange={handleSelectAllTransactions}
+                />
+              </TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell align="right">Amount</TableCell>
+              <TableCell>Tags</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell align="right">Amount</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                  <CircularProgress size={40} />
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {transactions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center">
+            ) : paginatedTransactions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                  <Typography variant="body1" color="text.secondary">
                     No transactions found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                transactions.map(transaction => (
-                  <TableRow key={transaction._id}>
-                    <TableCell>{formatDate(transaction.date)}</TableCell>
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {searchQuery || (filters && Object.values(filters).some(value => 
+                      (Array.isArray(value) && value.length > 0) || 
+                      (typeof value === 'object' && value !== null && Object.values(value).some(v => v !== null && v !== '')) ||
+                      (typeof value === 'string' && value !== '')
+                    )) ? 
+                      'Try adjusting your search or filters' : 
+                      'Add some transactions to get started'
+                    }
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedTransactions.map(transaction => {
+                const isItemSelected = isSelected(transaction._id);
+                
+                return (
+                  <TableRow 
+                    key={transaction._id}
+                    hover
+                    selected={isItemSelected}
+                    onClick={() => handleSelectTransaction(transaction)}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <TableCell padding="checkbox">
+                      <Checkbox checked={isItemSelected} />
+                    </TableCell>
+                    <TableCell>{format(new Date(transaction.date), 'MMM d, yyyy')}</TableCell>
                     <TableCell>{transaction.description}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={transaction.type}
-                        color={transaction.type === 'income' ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {transaction.category ? transaction.category.name : '-'}
-                    </TableCell>
+                    <TableCell>{getCategoryName(transaction.category)}</TableCell>
                     <TableCell align="right">
                       <Typography
-                        color={transaction.type === 'income' ? 'success.main' : 'error.main'}
+                        variant="body2"
+                        color={transaction.type === 'expense' ? 'error' : 'success.main'}
+                        fontWeight="medium"
                       >
-                        {formatAmount(transaction.amount)}
+                        {transaction.type === 'expense' ? '-' : '+'}
+                        ${transaction.amount.toFixed(2)}
                       </Typography>
                     </TableCell>
+                    <TableCell>
+                      {transaction.tags && transaction.tags.map(tag => (
+                        <Chip 
+                          key={tag} 
+                          label={tag} 
+                          size="small" 
+                          sx={{ mr: 0.5, mb: 0.5 }}
+                          variant="outlined"
+                          icon={<LocalOfferIcon fontSize="small" />}
+                        />
+                      ))}
+                    </TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" color="primary">
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(transaction._id)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      <Tooltip title="Transaction actions">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleActionMenuOpen(e, transaction)}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
       
       {/* Pagination */}
-      {pagination && (
-        <TablePagination
-          component="div"
-          count={pagination.total || 0}
-          page={filters.page}
-          onPageChange={handlePageChange}
-          rowsPerPage={filters.limit}
-          onRowsPerPageChange={handleLimitChange}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-        />
-      )}
-    </Paper>
+      <TablePagination
+        rowsPerPageOptions={[5, 10, 25, 50]}
+        component="div"
+        count={filteredTransactions.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+      
+      {/* Transaction action menu */}
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={handleActionMenuClose}
+      >
+        <MenuItem onClick={() => handleEditTransaction(actionMenuTransaction)}>
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleDuplicateTransaction(actionMenuTransaction)}>
+          <ListItemIcon>
+            <ContentCopyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Duplicate</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleDeleteTransaction(actionMenuTransaction?._id)}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+      
+      {/* Transaction edit dialog */}
+      <AdvancedTransactionForm
+        open={!!editTransaction}
+        onClose={() => setEditTransaction(null)}
+        initialData={editTransaction}
+      />
+      
+      {/* Bulk edit dialog */}
+      <BulkEditDialog
+        open={showBulkEdit}
+        onClose={() => {
+          setShowBulkEdit(false);
+          setSelectedTransactions([]);
+        }}
+        selectedTransactions={selectedTransactions}
+      />
+    </Box>
   );
 };
 

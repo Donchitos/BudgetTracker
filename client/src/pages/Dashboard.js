@@ -15,12 +15,15 @@ import DashboardCustomizer from '../components/dashboard/DashboardCustomizer';
 import { getCategories } from '../redux/actions/categoryActions';
 import { getTransactions } from '../redux/actions/transactionActions';
 
+/**
+ * Dashboard component with customizable widgets
+ */
 const Dashboard = () => {
   const dispatch = useDispatch();
   const isMobile = useIsMobile();
   
-  // Default dashboard widgets configuration
-  const defaultWidgets = [
+  // Widget configuration with visibility settings
+  const [widgets, setWidgets] = useState([
     { id: 'summary-cards', name: 'Summary Cards', visible: true },
     { id: 'category-alerts', name: 'Category Budget Alerts', visible: true },
     { id: 'expense-chart', name: 'Expense Breakdown', visible: true },
@@ -29,52 +32,90 @@ const Dashboard = () => {
     { id: 'spending-trends', name: 'Spending Trends', visible: true },
     { id: 'savings-goals', name: 'Savings Goals', visible: true },
     { id: 'bill-reminders', name: 'Bill Reminders', visible: true }
-  ];
+  ]);
   
-  // State for dashboard widgets configuration
-  const [widgets, setWidgets] = useState(defaultWidgets);
-  
+  // Load data and preferences
   useEffect(() => {
-    // Load data when component mounts
+    // Fetch data
     dispatch(getCategories());
     dispatch(getTransactions());
     
-    // Load saved dashboard preferences from localStorage
-    const savedPreferences = localStorage.getItem('dashboardPreferences');
-    if (savedPreferences) {
-      try {
+    // Load saved preferences
+    try {
+      const savedPreferences = localStorage.getItem('dashboardPreferences');
+      if (savedPreferences) {
         setWidgets(JSON.parse(savedPreferences));
-      } catch (err) {
-        console.error('Error loading dashboard preferences:', err);
       }
+    } catch (err) {
+      console.error('Error loading dashboard preferences:', err);
     }
     
-    // Listen for dashboard preferences updates
+    // Setup event listener for preference updates
     const handlePreferencesUpdated = (event) => {
-      setWidgets(event.detail.widgets);
+      if (event.detail && event.detail.widgets) {
+        setWidgets(event.detail.widgets);
+      }
     };
     
     window.addEventListener('dashboardPreferencesUpdated', handlePreferencesUpdated);
     
+    // Cleanup
     return () => {
       window.removeEventListener('dashboardPreferencesUpdated', handlePreferencesUpdated);
     };
   }, [dispatch]);
   
+  // Helper to check widget visibility
+  const isWidgetVisible = (id) => {
+    const widget = widgets.find(w => w.id === id);
+    return widget && widget.visible;
+  };
+  
+  // Save preferences to localStorage
+  const savePreferences = () => {
+    localStorage.setItem('dashboardPreferences', JSON.stringify(widgets));
+  };
+  
+  // Toggle widget visibility
+  const toggleWidget = (id) => {
+    const updatedWidgets = widgets.map(widget => 
+      widget.id === id ? { ...widget, visible: !widget.visible } : widget
+    );
+    setWidgets(updatedWidgets);
+    
+    // Save updated preferences
+    localStorage.setItem('dashboardPreferences', JSON.stringify(updatedWidgets));
+    
+    // Dispatch custom event for other components to react
+    window.dispatchEvent(
+      new CustomEvent('dashboardPreferencesUpdated', { 
+        detail: { widgets: updatedWidgets } 
+      })
+    );
+  };
+
+  // Mobile view
   if (isMobile) {
     return <MobileDashboard />;
   }
   
+  // Render desktop dashboard with customizable widgets
   return (
     <Box sx={{ position: 'relative' }}>
       <Typography variant="h4" gutterBottom>Dashboard</Typography>
-      <DashboardCustomizer />
+      
+      {/* Dashboard Customizer - Allows toggling widgets */}
+      <DashboardCustomizer 
+        widgets={widgets} 
+        onToggleWidget={toggleWidget}
+        onSave={savePreferences}
+      />
       
       {/* Summary Cards Section */}
-      {widgets.find(w => w.id === 'summary-cards')?.visible && <SummaryCards />}
+      {isWidgetVisible('summary-cards') && <SummaryCards />}
       
       {/* Budget Alerts Section */}
-      {widgets.find(w => w.id === 'category-alerts')?.visible && (
+      {isWidgetVisible('category-alerts') && (
         <Box sx={{ mb: 3, mt: 3 }}>
           <CategoryBudgetAlerts />
         </Box>
@@ -82,42 +123,42 @@ const Dashboard = () => {
       
       <Grid container spacing={3}>
         {/* Expense Breakdown Chart */}
-        {widgets.find(w => w.id === 'expense-chart')?.visible && (
+        {isWidgetVisible('expense-chart') && (
           <Grid item xs={12} md={8}>
             <ExpensePieChart />
           </Grid>
         )}
         
         {/* Recent Transactions */}
-        {widgets.find(w => w.id === 'recent-transactions')?.visible && (
+        {isWidgetVisible('recent-transactions') && (
           <Grid item xs={12} md={4}>
             <RecentTransactions />
           </Grid>
         )}
         
         {/* Budget vs Actual Chart */}
-        {widgets.find(w => w.id === 'budget-vs-actual')?.visible && (
+        {isWidgetVisible('budget-vs-actual') && (
           <Grid item xs={12}>
             <BudgetVsActualChart />
           </Grid>
         )}
         
         {/* Spending Trends Chart */}
-        {widgets.find(w => w.id === 'spending-trends')?.visible && (
+        {isWidgetVisible('spending-trends') && (
           <Grid item xs={12}>
             <SpendingTrendsChart />
           </Grid>
         )}
         
         {/* Savings Goals Dashboard */}
-        {widgets.find(w => w.id === 'savings-goals')?.visible && (
+        {isWidgetVisible('savings-goals') && (
           <Grid item xs={12} md={4}>
             <SavingsGoalDashboard />
           </Grid>
         )}
         
         {/* Bill Reminders */}
-        {widgets.find(w => w.id === 'bill-reminders')?.visible && (
+        {isWidgetVisible('bill-reminders') && (
           <Grid item xs={12} md={8}>
             <BillReminders />
           </Grid>
