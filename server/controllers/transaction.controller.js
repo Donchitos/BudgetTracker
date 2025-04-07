@@ -21,6 +21,17 @@ exports.getTransactions = async (req, res) => {
       query.category = req.query.category;
     }
     
+    // Filter by subcategory if provided
+    if (req.query.subcategory) {
+      query.subcategory = req.query.subcategory;
+    }
+    
+    // Filter by tags if provided
+    if (req.query.tags) {
+      const tagList = req.query.tags.split(',').map(tag => tag.trim());
+      query.tags = { $in: tagList };
+    }
+    
     // Filter by date range if provided
     if (req.query.startDate && req.query.endDate) {
       query.date = {

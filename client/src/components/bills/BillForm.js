@@ -1,280 +1,403 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import {
-  Box,
-  Button,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  FormHelperText,
-  Grid,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  InputAdornment
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+  InputAdornment,
+  FormControlLabel,
+  Switch,
+  Slider,
+  Typography,
+  Box,
+  Link,
+  FormHelperText
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { addDays, format } from 'date-fns';
+import LaunchIcon from '@mui/icons-material/Launch';
 
-const BillForm = ({ open, onClose, onSubmit, initialValues = null, title = 'Add Bill' }) => {
+const BillForm = ({ open, onClose, onSubmit, bill = null }) => {
   const { categories } = useSelector(state => state.categories);
   
-  // Initialize form state
-  const [formData, setFormData] = useState({
+  // State for form fields
+  const [formValues, setFormValues] = useState({
     name: '',
     amount: '',
     dueDate: new Date(),
-    frequency: 'monthly',
     category: '',
-    reminderDays: 3,
-    notes: ''
+    frequency: 'monthly',
+    paymentMethod: '',
+    autoPay: false,
+    website: '',
+    notes: '',
+    reminderDays: 3
   });
   
-  // Form validation errors
-  const [errors, setErrors] = useState({});
+  // State for validation errors
+  const [formErrors, setFormErrors] = useState({});
   
-  // Initialize form when editing an existing bill
+  // Update form when bill prop changes
   useEffect(() => {
-    if (initialValues) {
-      setFormData({
-        name: initialValues.name || '',
-        amount: initialValues.amount?.toString() || '',
-        dueDate: initialValues.dueDate ? new Date(initialValues.dueDate) : new Date(),
-        frequency: initialValues.frequency || 'monthly',
-        category: initialValues.category?._id || initialValues.category || '',
-        reminderDays: initialValues.reminderDays || 3,
-        notes: initialValues.notes || ''
+    if (bill) {
+      setFormValues({
+        name: bill.name || '',
+        amount: bill.amount?.toString() || '',
+        dueDate: bill.dueDate ? new Date(bill.dueDate) : new Date(),
+        category: bill.category?._id || bill.category || '',
+        frequency: bill.frequency || 'monthly',
+        paymentMethod: bill.paymentMethod || '',
+        autoPay: bill.autoPay || false,
+        website: bill.website || '',
+        notes: bill.notes || '',
+        reminderDays: bill.reminderDays || 3
       });
     } else {
       // Reset form for new bill
-      setFormData({
+      setFormValues({
         name: '',
         amount: '',
         dueDate: new Date(),
-        frequency: 'monthly',
         category: '',
-        reminderDays: 3,
-        notes: ''
+        frequency: 'monthly',
+        paymentMethod: '',
+        autoPay: false,
+        website: '',
+        notes: '',
+        reminderDays: 3
       });
     }
     
-    // Reset errors
-    setErrors({});
-  }, [initialValues, open]);
+    // Clear errors when dialog opens/closes
+    setFormErrors({});
+  }, [bill, open]);
   
-  // Handle form input changes
+  // Handle input change
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
     
-    // Clear error for the field being edited
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    setFormValues(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    
+    // Clear error when field is changed
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: null }));
     }
   };
   
   // Handle date change
   const handleDateChange = (date) => {
-    setFormData(prev => ({ ...prev, dueDate: date }));
+    setFormValues(prev => ({
+      ...prev,
+      dueDate: date
+    }));
     
-    if (errors.dueDate) {
-      setErrors(prev => ({ ...prev, dueDate: '' }));
+    // Clear error when field is changed
+    if (formErrors.dueDate) {
+      setFormErrors(prev => ({ ...prev, dueDate: null }));
     }
+  };
+  
+  // Handle reminder days slider change
+  const handleReminderDaysChange = (event, newValue) => {
+    setFormValues(prev => ({
+      ...prev,
+      reminderDays: newValue
+    }));
   };
   
   // Validate form
   const validateForm = () => {
-    const newErrors = {};
+    const errors = {};
     
-    if (!formData.name.trim()) {
-      newErrors.name = 'Bill name is required';
+    if (!formValues.name.trim()) {
+      errors.name = 'Bill name is required';
     }
     
-    if (!formData.amount || isNaN(formData.amount) || parseFloat(formData.amount) <= 0) {
-      newErrors.amount = 'Valid amount is required';
+    if (!formValues.amount || parseFloat(formValues.amount) <= 0) {
+      errors.amount = 'Please enter a valid amount';
     }
     
-    if (!formData.dueDate) {
-      newErrors.dueDate = 'Due date is required';
+    if (!formValues.dueDate) {
+      errors.dueDate = 'Due date is required';
     }
     
-    if (!formData.frequency) {
-      newErrors.frequency = 'Frequency is required';
+    // Validate website URL if provided
+    if (formValues.website && !isValidUrl(formValues.website)) {
+      errors.website = 'Please enter a valid URL (e.g., https://example.com)';
     }
     
-    if (!formData.reminderDays && formData.reminderDays !== 0) {
-      newErrors.reminderDays = 'Reminder days is required';
-    } else if (formData.reminderDays < 0 || formData.reminderDays > 30) {
-      newErrors.reminderDays = 'Reminder days must be between 0 and 30';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  // Check if URL is valid
+  const isValidUrl = (url) => {
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
     }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  };
+  
+  // Format date
+  const formatDate = (date) => {
+    if (!date) return '';
+    return format(date, 'MM/dd/yyyy');
   };
   
   // Handle form submission
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
+  const handleSubmit = () => {
     if (!validateForm()) {
       return;
     }
     
-    // Format data for submission
-    const billData = {
-      ...formData,
-      amount: parseFloat(formData.amount),
-      reminderDays: parseInt(formData.reminderDays, 10)
+    const formData = {
+      ...formValues,
+      amount: parseFloat(formValues.amount)
     };
     
-    onSubmit(billData);
+    onSubmit(formData);
+  };
+  
+  // Calculate reminder date preview
+  const getReminderDatePreview = () => {
+    if (!formValues.dueDate) return '';
+    
+    const reminderDate = addDays(
+      new Date(formValues.dueDate),
+      -formValues.reminderDays
+    );
+    
+    return format(reminderDate, 'MM/dd/yyyy');
   };
   
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogTitle>
+        {bill ? 'Edit Bill' : 'Add New Bill'}
+      </DialogTitle>
       <DialogContent>
-        <Box component="form" sx={{ mt: 1 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="name"
-                label="Bill Name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                error={!!errors.name}
-                helperText={errors.name}
-                autoFocus
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="amount"
-                label="Amount"
-                name="amount"
-                type="number"
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                }}
-                value={formData.amount}
-                onChange={handleChange}
-                error={!!errors.amount}
-                helperText={errors.amount}
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="Due Date *"
-                  value={formData.dueDate}
-                  onChange={handleDateChange}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.dueDate}
-                      helperText={errors.dueDate}
-                    />
-                  )}
-                />
-              </LocalizationProvider>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="normal" required>
-                <InputLabel id="frequency-label">Frequency</InputLabel>
-                <Select
-                  labelId="frequency-label"
-                  id="frequency"
-                  name="frequency"
-                  value={formData.frequency}
-                  label="Frequency"
-                  onChange={handleChange}
-                  error={!!errors.frequency}
-                >
-                  <MenuItem value="one-time">One-time</MenuItem>
-                  <MenuItem value="weekly">Weekly</MenuItem>
-                  <MenuItem value="monthly">Monthly</MenuItem>
-                  <MenuItem value="quarterly">Quarterly</MenuItem>
-                  <MenuItem value="yearly">Yearly</MenuItem>
-                </Select>
-                {errors.frequency && (
-                  <FormHelperText error>{errors.frequency}</FormHelperText>
-                )}
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="normal">
-                <InputLabel id="category-label">Category (Optional)</InputLabel>
-                <Select
-                  labelId="category-label"
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  label="Category (Optional)"
-                  onChange={handleChange}
-                >
-                  <MenuItem value="">None</MenuItem>
-                  {categories && categories.map(category => (
-                    <MenuItem key={category._id} value={category._id}>
-                      {category.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="reminderDays"
-                label="Reminder Days"
-                name="reminderDays"
-                type="number"
-                value={formData.reminderDays}
-                onChange={handleChange}
-                error={!!errors.reminderDays}
-                helperText={errors.reminderDays || "Days before due date to show reminder"}
-                InputProps={{ inputProps: { min: 0, max: 30 } }}
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                margin="normal"
-                fullWidth
-                id="notes"
-                label="Notes (Optional)"
-                name="notes"
-                multiline
-                rows={2}
-                value={formData.notes}
-                onChange={handleChange}
-              />
-            </Grid>
+        <Grid container spacing={3} sx={{ mt: 0.5 }}>
+          <Grid item xs={12}>
+            <TextField
+              name="name"
+              label="Bill Name"
+              value={formValues.name}
+              onChange={handleChange}
+              fullWidth
+              required
+              error={!!formErrors.name}
+              helperText={formErrors.name}
+              autoFocus
+            />
           </Grid>
-        </Box>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              name="amount"
+              label="Amount"
+              value={formValues.amount}
+              onChange={handleChange}
+              fullWidth
+              required
+              type="number"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+              error={!!formErrors.amount}
+              helperText={formErrors.amount}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Due Date"
+                value={formValues.dueDate}
+                onChange={handleDateChange}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    fullWidth
+                    required
+                    error={!!formErrors.dueDate}
+                    helperText={formErrors.dueDate}
+                  />
+                )}
+              />
+            </LocalizationProvider>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Frequency</InputLabel>
+              <Select
+                name="frequency"
+                value={formValues.frequency}
+                onChange={handleChange}
+                label="Frequency"
+              >
+                <MenuItem value="one-time">One Time</MenuItem>
+                <MenuItem value="weekly">Weekly</MenuItem>
+                <MenuItem value="biweekly">Bi-weekly</MenuItem>
+                <MenuItem value="monthly">Monthly</MenuItem>
+                <MenuItem value="quarterly">Quarterly</MenuItem>
+                <MenuItem value="annually">Annually</MenuItem>
+              </Select>
+              <FormHelperText>
+                How often this bill recurs
+              </FormHelperText>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Category (Optional)</InputLabel>
+              <Select
+                name="category"
+                value={formValues.category}
+                onChange={handleChange}
+                label="Category (Optional)"
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {categories.map((category) => (
+                  <MenuItem 
+                    key={category._id} 
+                    value={category._id}
+                    sx={{ 
+                      '&::before': {
+                        content: '""',
+                        display: 'inline-block',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: category.color || '#ccc',
+                        marginRight: '8px'
+                      }
+                    }}
+                  >
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              name="paymentMethod"
+              label="Payment Method (Optional)"
+              value={formValues.paymentMethod}
+              onChange={handleChange}
+              fullWidth
+              placeholder="e.g., Credit Card, Bank Transfer"
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              name="website"
+              label="Payment Website (Optional)"
+              value={formValues.website}
+              onChange={handleChange}
+              fullWidth
+              placeholder="e.g., https://mybill.com"
+              error={!!formErrors.website}
+              helperText={formErrors.website}
+              InputProps={{
+                endAdornment: formValues.website ? (
+                  <InputAdornment position="end">
+                    <Link 
+                      href={formValues.website} 
+                      target="_blank" 
+                      rel="noopener"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <LaunchIcon fontSize="small" />
+                    </Link>
+                  </InputAdornment>
+                ) : null
+              }}
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formValues.autoPay}
+                  onChange={handleChange}
+                  name="autoPay"
+                  color="primary"
+                />
+              }
+              label="Auto-Pay Enabled"
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <Typography gutterBottom>
+              Reminder Days Before Due Date: {formValues.reminderDays} {formValues.reminderDays === 1 ? 'day' : 'days'}
+            </Typography>
+            <Slider
+              value={formValues.reminderDays}
+              onChange={handleReminderDaysChange}
+              step={1}
+              marks
+              min={0}
+              max={14}
+              valueLabelDisplay="auto"
+            />
+            <Typography variant="body2" color="text.secondary">
+              {formValues.reminderDays > 0 ? (
+                `You'll be reminded on ${getReminderDatePreview()}`
+              ) : (
+                "You won't receive a reminder"
+              )}
+            </Typography>
+          </Grid>
+          
+          <Grid item xs={12}>
+            <TextField
+              name="notes"
+              label="Notes (Optional)"
+              value={formValues.notes}
+              onChange={handleChange}
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Additional information about this bill"
+            />
+          </Grid>
+        </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
-          {initialValues ? 'Update' : 'Add'} Bill
+        <Button onClick={onClose} color="inherit">
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} variant="contained" color="primary">
+          {bill ? 'Update Bill' : 'Add Bill'}
         </Button>
       </DialogActions>
     </Dialog>

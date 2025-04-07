@@ -6,31 +6,36 @@ const {
   updateSavingsGoal,
   deleteSavingsGoal,
   addContribution,
-  getSavingsSummary
+  changeGoalStatus,
+  getSavingsStats
 } = require('../controllers/savingsGoal.controller');
 const { protect } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
-// All savings routes require authentication
+// All routes require authentication
 router.use(protect);
 
-// Get summary of all savings goals
-router.get('/summary', getSavingsSummary);
+// Get statistics
+router.route('/stats').get(getSavingsStats);
 
-// Basic CRUD routes
-router
-  .route('/')
+// Get all savings goals and create a new one
+router.route('/')
   .get(getSavingsGoals)
   .post(createSavingsGoal);
 
-router
-  .route('/:id')
+// Get, update, and delete a specific savings goal
+router.route('/:id')
   .get(getSavingsGoal)
   .put(updateSavingsGoal)
   .delete(deleteSavingsGoal);
 
-// Add contribution to a savings goal
-router.post('/:id/contribute', addContribution);
+// Add a contribution to a savings goal
+router.route('/:id/contributions')
+  .post(addContribution);
+
+// Change the status of a savings goal
+router.route('/:id/status')
+  .put(changeGoalStatus);
 
 module.exports = router;

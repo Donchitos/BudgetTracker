@@ -3,13 +3,13 @@ const mongoose = require('mongoose');
 const SavingsGoalSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Please add a name for the savings goal'],
+    required: [true, 'Please add a name for this goal'],
     trim: true,
     maxlength: [100, 'Name cannot be more than 100 characters']
   },
   targetAmount: {
     type: Number,
-    required: [true, 'Please add a target amount'],
+    required: [true, 'Please specify target amount'],
     min: [1, 'Target amount must be at least 1']
   },
   currentAmount: {
@@ -17,27 +17,32 @@ const SavingsGoalSchema = new mongoose.Schema({
     default: 0,
     min: [0, 'Current amount cannot be negative']
   },
+  startDate: {
+    type: Date,
+    default: Date.now
+  },
   targetDate: {
     type: Date,
-    required: [true, 'Please add a target date']
+    required: [true, 'Please specify target date']
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category'
   },
-  isCompleted: {
-    type: Boolean,
-    default: false
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'medium'
+  },
+  status: {
+    type: String,
+    enum: ['in_progress', 'completed', 'cancelled'],
+    default: 'in_progress'
   },
   description: {
     type: String,
     trim: true,
     maxlength: [500, 'Description cannot be more than 500 characters']
-  },
-  priority: {
-    type: String,
-    enum: ['low', 'medium', 'high'],
-    default: 'medium'
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -46,59 +51,60 @@ const SavingsGoalSchema = new mongoose.Schema({
   },
   contributions: [
     {
+      amount: {
+        type: Number,
+        required: true,
+        min: [0.01, 'Contribution must be at least 0.01']
+      },
       date: {
         type: Date,
         default: Date.now
       },
-      amount: {
-        type: Number,
-        required: true,
-        min: [0.01, 'Contribution amount must be at least 0.01']
-      },
       notes: {
         type: String,
-        trim: true
+        trim: true,
+        maxlength: [200, 'Notes cannot be more than 200 characters']
       }
     }
   ],
-  color: {
-    type: String,
-    default: '#1976d2'
-  },
-  icon: {
-    type: String,
-    default: 'SavingsIcon'
-  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-// Indexes for faster querying
-SavingsGoalSchema.index({ user: 1, isCompleted: 1 });
-SavingsGoalSchema.index({ user: 1, targetDate: 1 });
-
-// Calculate progress percentage
+// Virtual for progress percentage
 SavingsGoalSchema.virtual('progressPercentage').get(function() {
-  if (this.targetAmount === 0) return 0;
-  return Math.min(100, Math.round((this.currentAmount / this.targetAmount) * 100));
+  if (this.targetAmount <= 0) return 0;
+  return Math.min(100, (this.currentAmount / this.targetAmount) * 100);
 });
 
-// Calculate remaining amount
+// Virtual for remaining amount
 SavingsGoalSchema.virtual('remainingAmount').get(function() {
   return Math.max(0, this.targetAmount - this.currentAmount);
 });
 
-// Calculate days remaining until target date
+// Virtual for days remaining
 SavingsGoalSchema.virtual('daysRemaining').get(function() {
   const today = new Date();
-  const targetDate = new Date(this.targetDate);
-  const diffTime = targetDate - today;
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const target = new Date(this.targetDate);
+  const diffTime = target - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
 });
 
-// Include virtuals when converting to JSON
+// Virtual for daily savings needed
+SavingsGoalSchema.virtual('dailySavingsNeeded').get(function() {
+  const daysRemaining = this.daysRemaining;
+  if (daysRemaining <= 0) return 0;
+  return this.remainingAmount / daysRemaining;
+});
+
+// Index for faster querying
+SavingsGoalSchema.index({ user: 1, status: 1 });
+SavingsGoalSchema.index({ targetDate: 1 });
+
+// Apply virtuals when converting to JSON
 SavingsGoalSchema.set('toJSON', { virtuals: true });
 SavingsGoalSchema.set('toObject', { virtuals: true });
 

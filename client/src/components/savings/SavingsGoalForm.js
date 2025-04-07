@@ -7,342 +7,413 @@ import {
   DialogActions,
   TextField,
   Button,
-  Grid,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
+  Grid,
   InputAdornment,
-  Box,
   Typography,
-  Slider
+  FormHelperText,
+  Box,
+  Alert
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
-import { CirclePicker } from 'react-color';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { addMonths, addYears, format, differenceInDays, isAfter } from 'date-fns';
 
-const SavingsGoalForm = ({ open, onClose, onSubmit, initialValues = null, title = 'Add Savings Goal' }) => {
+const SavingsGoalForm = ({ open, onClose, onSubmit, goal = null }) => {
   const { categories } = useSelector(state => state.categories);
   
-  // Initialize form state
-  const [formData, setFormData] = useState({
+  // State for form fields
+  const [formValues, setFormValues] = useState({
     name: '',
     targetAmount: '',
-    currentAmount: '0',
-    targetDate: new Date(new Date().setMonth(new Date().getMonth() + 3)), // Default 3 months from now
+    currentAmount: '',
+    startDate: new Date(),
+    targetDate: addMonths(new Date(), 6),
     category: '',
-    description: '',
     priority: 'medium',
-    color: '#1976d2',
-    icon: 'SavingsIcon'
+    description: ''
   });
   
-  // Form validation errors
-  const [errors, setErrors] = useState({});
+  // State for form errors
+  const [formErrors, setFormErrors] = useState({});
   
-  // Initialize form when editing an existing goal
+  // Update form when goal changes
   useEffect(() => {
-    if (initialValues) {
-      setFormData({
-        name: initialValues.name || '',
-        targetAmount: initialValues.targetAmount?.toString() || '',
-        currentAmount: initialValues.currentAmount?.toString() || '0',
-        targetDate: initialValues.targetDate ? new Date(initialValues.targetDate) : new Date(new Date().setMonth(new Date().getMonth() + 3)),
-        category: initialValues.category?._id || initialValues.category || '',
-        description: initialValues.description || '',
-        priority: initialValues.priority || 'medium',
-        color: initialValues.color || '#1976d2',
-        icon: initialValues.icon || 'SavingsIcon'
+    if (goal) {
+      setFormValues({
+        name: goal.name || '',
+        targetAmount: goal.targetAmount?.toString() || '',
+        currentAmount: goal.currentAmount?.toString() || '',
+        startDate: goal.startDate ? new Date(goal.startDate) : new Date(),
+        targetDate: goal.targetDate ? new Date(goal.targetDate) : addMonths(new Date(), 6),
+        category: goal.category?._id || goal.category || '',
+        priority: goal.priority || 'medium',
+        description: goal.description || ''
       });
     } else {
       // Reset form for new goal
-      setFormData({
+      setFormValues({
         name: '',
         targetAmount: '',
-        currentAmount: '0',
-        targetDate: new Date(new Date().setMonth(new Date().getMonth() + 3)),
+        currentAmount: '',
+        startDate: new Date(),
+        targetDate: addMonths(new Date(), 6),
         category: '',
-        description: '',
         priority: 'medium',
-        color: '#1976d2',
-        icon: 'SavingsIcon'
+        description: ''
       });
     }
     
-    // Reset errors
-    setErrors({});
-  }, [initialValues, open]);
+    // Clear errors when dialog opens/closes
+    setFormErrors({});
+  }, [goal, open]);
   
-  // Handle form input changes
+  // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear error for the field being edited
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    setFormValues(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear error when field is changed
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: null }));
     }
   };
   
   // Handle date change
-  const handleDateChange = (date) => {
-    setFormData(prev => ({ ...prev, targetDate: date }));
+  const handleDateChange = (date, field) => {
+    setFormValues(prev => ({
+      ...prev,
+      [field]: date
+    }));
     
-    if (errors.targetDate) {
-      setErrors(prev => ({ ...prev, targetDate: '' }));
+    // Clear error when field is changed
+    if (formErrors[field]) {
+      setFormErrors(prev => ({ ...prev, [field]: null }));
     }
   };
   
-  // Handle color change
-  const handleColorChange = (color) => {
-    setFormData(prev => ({ ...prev, color: color.hex }));
+  // Calculate savings rate data
+  const calculateSavingsData = () => {
+    const targetAmount = parseFloat(formValues.targetAmount) || 0;
+    const currentAmount = parseFloat(formValues.currentAmount) || 0;
+    
+    if (!targetAmount || !formValues.targetDate) {
+      return {
+        remainingAmount: 0,
+        daysRemaining: 0,
+        dailyAmount: 0,
+        weeklyAmount: 0,
+        monthlyAmount: 0
+      };
+    }
+    
+    const remainingAmount = Math.max(0, targetAmount - currentAmount);
+    const daysRemaining = Math.max(0, differenceInDays(formValues.targetDate, new Date()));
+    
+    // Calculate amounts needed
+    const dailyAmount = daysRemaining > 0 ? remainingAmount / daysRemaining : 0;
+    const weeklyAmount = daysRemaining > 0 ? (remainingAmount / daysRemaining) * 7 : 0;
+    const monthlyAmount = daysRemaining > 0 ? (remainingAmount / daysRemaining) * 30 : 0;
+    
+    return {
+      remainingAmount,
+      daysRemaining,
+      dailyAmount,
+      weeklyAmount,
+      monthlyAmount
+    };
   };
   
-  // Calculate progress percentage
-  const getProgressPercentage = () => {
-    const target = parseFloat(formData.targetAmount) || 0;
-    const current = parseFloat(formData.currentAmount) || 0;
-    
-    if (target === 0) return 0;
-    return Math.min(100, Math.round((current / target) * 100));
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
   };
   
   // Validate form
   const validateForm = () => {
-    const newErrors = {};
+    const errors = {};
     
-    if (!formData.name.trim()) {
-      newErrors.name = 'Goal name is required';
+    if (!formValues.name.trim()) {
+      errors.name = 'Name is required';
     }
     
-    if (!formData.targetAmount || isNaN(formData.targetAmount) || parseFloat(formData.targetAmount) <= 0) {
-      newErrors.targetAmount = 'Valid target amount is required';
+    if (!formValues.targetAmount || parseFloat(formValues.targetAmount) <= 0) {
+      errors.targetAmount = 'Please enter a valid target amount';
     }
     
-    if (!formData.currentAmount || isNaN(formData.currentAmount) || parseFloat(formData.currentAmount) < 0) {
-      newErrors.currentAmount = 'Valid current amount is required';
+    if (formValues.currentAmount && parseFloat(formValues.currentAmount) < 0) {
+      errors.currentAmount = 'Current amount cannot be negative';
     }
     
-    if (!formData.targetDate) {
-      newErrors.targetDate = 'Target date is required';
-    } else if (formData.targetDate < new Date()) {
-      newErrors.targetDate = 'Target date must be in the future';
+    if (!formValues.targetDate) {
+      errors.targetDate = 'Target date is required';
+    } else if (isAfter(new Date(), formValues.targetDate)) {
+      errors.targetDate = 'Target date must be in the future';
     }
     
-    if (!formData.priority) {
-      newErrors.priority = 'Priority is required';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
   
   // Handle form submission
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
+  const handleSubmit = () => {
     if (!validateForm()) {
       return;
     }
     
-    // Format data for submission
-    const goalData = {
-      ...formData,
-      targetAmount: parseFloat(formData.targetAmount),
-      currentAmount: parseFloat(formData.currentAmount),
-      isCompleted: parseFloat(formData.currentAmount) >= parseFloat(formData.targetAmount)
+    const formData = {
+      ...formValues,
+      targetAmount: parseFloat(formValues.targetAmount),
+      currentAmount: formValues.currentAmount ? parseFloat(formValues.currentAmount) : 0
     };
     
-    onSubmit(goalData);
+    onSubmit(formData);
   };
   
-  // Format currency for display
-  const formatCurrency = (amount) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(parseFloat(amount));
-  };
+  // Get savings data for display
+  const savingsData = calculateSavingsData();
   
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogTitle>
+        {goal ? 'Edit Savings Goal' : 'Create New Savings Goal'}
+      </DialogTitle>
       <DialogContent>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <Box component="form" sx={{ mt: 1 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="name"
-                  label="Goal Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  error={!!errors.name}
-                  helperText={errors.name}
-                  autoFocus
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel id="priority-label">Priority</InputLabel>
-                  <Select
-                    labelId="priority-label"
-                    id="priority"
-                    name="priority"
-                    value={formData.priority}
-                    label="Priority"
-                    onChange={handleChange}
+        <Grid container spacing={3} sx={{ mt: 0.5 }}>
+          <Grid item xs={12}>
+            <TextField
+              name="name"
+              label="Goal Name"
+              value={formValues.name}
+              onChange={handleChange}
+              fullWidth
+              error={!!formErrors.name}
+              helperText={formErrors.name}
+              autoFocus
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              name="targetAmount"
+              label="Target Amount"
+              value={formValues.targetAmount}
+              onChange={handleChange}
+              fullWidth
+              type="number"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+              error={!!formErrors.targetAmount}
+              helperText={formErrors.targetAmount}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              name="currentAmount"
+              label="Current Amount (Optional)"
+              value={formValues.currentAmount}
+              onChange={handleChange}
+              fullWidth
+              type="number"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+              error={!!formErrors.currentAmount}
+              helperText={formErrors.currentAmount || 'Leave blank to start from $0'}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Start Date"
+                value={formValues.startDate}
+                onChange={(date) => handleDateChange(date, 'startDate')}
+                renderInput={(params) => <TextField {...params} fullWidth />}
+              />
+            </LocalizationProvider>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Target Date"
+                value={formValues.targetDate}
+                onChange={(date) => handleDateChange(date, 'targetDate')}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    fullWidth
+                    error={!!formErrors.targetDate}
+                    helperText={formErrors.targetDate}
+                  />
+                )}
+                minDate={new Date()}
+              />
+            </LocalizationProvider>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Category (Optional)</InputLabel>
+              <Select
+                name="category"
+                value={formValues.category}
+                onChange={handleChange}
+                label="Category (Optional)"
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {categories.map((category) => (
+                  <MenuItem 
+                    key={category._id} 
+                    value={category._id}
+                    sx={{ 
+                      '&::before': {
+                        content: '""',
+                        display: 'inline-block',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: category.color || '#ccc',
+                        marginRight: '8px'
+                      }
+                    }}
                   >
-                    <MenuItem value="low">Low</MenuItem>
-                    <MenuItem value="medium">Medium</MenuItem>
-                    <MenuItem value="high">High</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="targetAmount"
-                  label="Target Amount"
-                  name="targetAmount"
-                  type="number"
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  }}
-                  value={formData.targetAmount}
-                  onChange={handleChange}
-                  error={!!errors.targetAmount}
-                  helperText={errors.targetAmount}
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="normal"
-                  fullWidth
-                  id="currentAmount"
-                  label="Current Amount"
-                  name="currentAmount"
-                  type="number"
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  }}
-                  value={formData.currentAmount}
-                  onChange={handleChange}
-                  error={!!errors.currentAmount}
-                  helperText={errors.currentAmount || 'Leave at 0 for a new savings goal'}
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <DatePicker
-                  label="Target Date *"
-                  value={formData.targetDate}
-                  onChange={handleDateChange}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.targetDate}
-                      helperText={errors.targetDate}
-                    />
-                  )}
-                  minDate={new Date()}
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel id="category-label">Category (Optional)</InputLabel>
-                  <Select
-                    labelId="category-label"
-                    id="category"
-                    name="category"
-                    value={formData.category}
-                    label="Category (Optional)"
-                    onChange={handleChange}
-                  >
-                    <MenuItem value="">None</MenuItem>
-                    {categories && categories.map(category => (
-                      <MenuItem key={category._id} value={category._id}>
-                        {category.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12}>
-                <TextField
-                  margin="normal"
-                  fullWidth
-                  id="description"
-                  label="Description (Optional)"
-                  name="description"
-                  multiline
-                  rows={2}
-                  value={formData.description}
-                  onChange={handleChange}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Typography gutterBottom>
-                  Choose a color for your savings goal:
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>Optional: associate with a spending category</FormHelperText>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Priority</InputLabel>
+              <Select
+                name="priority"
+                value={formValues.priority}
+                onChange={handleChange}
+                label="Priority"
+              >
+                <MenuItem value="low">Low Priority</MenuItem>
+                <MenuItem value="medium">Medium Priority</MenuItem>
+                <MenuItem value="high">High Priority</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12}>
+            <TextField
+              name="description"
+              label="Description (Optional)"
+              value={formValues.description}
+              onChange={handleChange}
+              fullWidth
+              multiline
+              rows={3}
+            />
+          </Grid>
+          
+          {/* Savings calculations */}
+          {formValues.targetAmount && formValues.targetDate && (
+            <Grid item xs={12}>
+              <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, mt: 1 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Savings Plan
                 </Typography>
-                <CirclePicker
-                  color={formData.color}
-                  onChange={handleColorChange}
-                  width="100%"
-                  circleSize={24}
-                  circleSpacing={10}
-                />
-              </Grid>
-              
-              {parseFloat(formData.targetAmount) > 0 && parseFloat(formData.currentAmount) >= 0 && (
-                <Grid item xs={12} sx={{ mt: 2 }}>
-                  <Box sx={{ px: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography>Progress:</Typography>
-                      <Typography>{`${getProgressPercentage()}%`}</Typography>
-                    </Box>
-                    <Slider
-                      value={getProgressPercentage()}
-                      disabled
-                      sx={{
-                        '& .MuiSlider-track': {
-                          backgroundColor: getProgressPercentage() >= 100 ? 'success.main' : 'primary.main',
-                        },
-                        '& .MuiSlider-thumb': {
-                          backgroundColor: getProgressPercentage() >= 100 ? 'success.main' : 'primary.main',
-                        }
-                      }}
-                    />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                      <Typography variant="body2">{formatCurrency(formData.currentAmount)}</Typography>
-                      <Typography variant="body2">{formatCurrency(formData.targetAmount)}</Typography>
-                    </Box>
-                  </Box>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Remaining Amount:
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatCurrency(savingsData.remainingAmount)}
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Days Until Target:
+                    </Typography>
+                    <Typography variant="body1">
+                      {savingsData.daysRemaining} days
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      Daily Savings Needed:
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatCurrency(savingsData.dailyAmount)}
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      Weekly Savings Needed:
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatCurrency(savingsData.weeklyAmount)}
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      Monthly Savings Needed:
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatCurrency(savingsData.monthlyAmount)}
+                    </Typography>
+                  </Grid>
                 </Grid>
-              )}
+                
+                {savingsData.daysRemaining === 0 && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    The target date has already passed or is today. Please choose a future date.
+                  </Alert>
+                )}
+                
+                {savingsData.daysRemaining > 0 && savingsData.dailyAmount > 100 && (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    Your daily savings requirement is quite high. Consider extending your target date or adjusting your goal amount.
+                  </Alert>
+                )}
+              </Box>
             </Grid>
-          </Box>
-        </LocalizationProvider>
+          )}
+        </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
-          {initialValues ? 'Update' : 'Create'} Goal
+        <Button onClick={onClose} color="inherit">
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} variant="contained" color="primary">
+          {goal ? 'Update Goal' : 'Create Goal'}
         </Button>
       </DialogActions>
     </Dialog>

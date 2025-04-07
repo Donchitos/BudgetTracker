@@ -146,6 +146,9 @@ app.use('/api/savings', require('./routes/savingsGoal.routes'));
 app.use('/api/budget-templates', require('./routes/budgetTemplate.routes'));
 app.use('/api/reports', require('./routes/report.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
+app.use('/api/recurring-transactions', require('./routes/recurringTransaction.routes'));
+app.use('/api/import', require('./routes/importExport.routes'));
+app.use('/api/export', require('./routes/importExport.routes'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

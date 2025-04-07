@@ -6,33 +6,42 @@ const {
   updateBill,
   deleteBill,
   markBillAsPaid,
+  skipBillPayment,
   getUpcomingBills,
-  getOverdueBills
+  getBillStats
 } = require('../controllers/bill.controller');
 const { protect } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
-// All bill routes require authentication
+// All routes require authentication
 router.use(protect);
 
-// Specialized routes
-router.get('/upcoming', getUpcomingBills);
-router.get('/overdue', getOverdueBills);
+// Get upcoming bills/reminders
+router.route('/upcoming')
+  .get(getUpcomingBills);
 
-// Basic CRUD routes
-router
-  .route('/')
+// Get bill statistics
+router.route('/stats')
+  .get(getBillStats);
+
+// Get all bills and create a new one
+router.route('/')
   .get(getBills)
   .post(createBill);
 
-router
-  .route('/:id')
+// Get, update, and delete a specific bill
+router.route('/:id')
   .get(getBill)
   .put(updateBill)
   .delete(deleteBill);
 
 // Mark bill as paid
-router.put('/:id/pay', markBillAsPaid);
+router.route('/:id/pay')
+  .put(markBillAsPaid);
+
+// Skip bill payment
+router.route('/:id/skip')
+  .put(skipBillPayment);
 
 module.exports = router;

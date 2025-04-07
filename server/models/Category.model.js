@@ -20,6 +20,28 @@ const CategorySchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  rolloverUnused: {
+    type: Boolean,
+    default: false
+  },
+  rolloverPercentage: {
+    type: Number,
+    default: 100,
+    min: 0,
+    max: 100
+  },
+  rolloverCap: {
+    type: Number,
+    default: null
+  },
+  lastRolloverAmount: {
+    type: Number,
+    default: 0
+  },
+  lastRolloverDate: {
+    type: Date,
+    default: null
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const TransactionSchema = new mongoose.Schema({
+const RecurringTransactionSchema = new mongoose.Schema({
   description: {
     type: String,
     required: [true, 'Please add a description'],
@@ -18,9 +18,20 @@ const TransactionSchema = new mongoose.Schema({
     enum: ['income', 'expense'],
     lowercase: true
   },
-  date: {
+  frequency: {
+    type: String,
+    required: [true, 'Please specify frequency'],
+    enum: ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'],
+    default: 'monthly'
+  },
+  startDate: {
     type: Date,
+    required: [true, 'Please specify start date'],
     default: Date.now
+  },
+  endDate: {
+    type: Date,
+    default: null // null means no end date
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,
@@ -47,6 +58,28 @@ const TransactionSchema = new mongoose.Schema({
     trim: true,
     maxlength: [500, 'Notes cannot be more than 500 characters']
   },
+  // For weekly/biweekly transactions
+  dayOfWeek: {
+    type: Number, // 0 = Sunday, 1 = Monday, etc.
+    min: 0,
+    max: 6
+  },
+  // For monthly transactions
+  dayOfMonth: {
+    type: Number,
+    min: 1,
+    max: 31
+  },
+  // For tracking transaction generation
+  lastGeneratedDate: {
+    type: Date,
+    default: null
+  },
+  // Status
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -54,7 +87,7 @@ const TransactionSchema = new mongoose.Schema({
 });
 
 // Add index for faster queries
-TransactionSchema.index({ user: 1, date: -1 });
-TransactionSchema.index({ category: 1, user: 1 });
+RecurringTransactionSchema.index({ user: 1 });
+RecurringTransactionSchema.index({ frequency: 1, isActive: 1 });
 
-module.exports = mongoose.model('Transaction', TransactionSchema);
+module.exports = mongoose.model('RecurringTransaction', RecurringTransactionSchema);

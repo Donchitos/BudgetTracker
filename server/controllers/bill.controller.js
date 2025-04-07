@@ -1,5 +1,6 @@
 const Bill = require('../models/Bill.model');
-const Category = require('../models/Category.model');
+const Transaction = require('../models/Transaction.model');
+const { startOfDay, endOfDay, addDays } = require('date-fns');
 
 /**
  * @desc    Get all bills for a user
@@ -11,26 +12,26 @@ exports.getBills = async (req, res) => {
     // Build query with filtering options
     let query = { user: req.user.id };
     
-    // Filter by isPaid if provided
-    if (req.query.isPaid !== undefined) {
-      query.isPaid = req.query.isPaid === 'true';
+    // Filter by status if provided
+    if (req.query.status) {
+      query.status = req.query.status;
     }
     
-    // Filter by future due dates (upcoming bills)
-    if (req.query.upcoming === 'true') {
-      query.dueDate = { $gte: new Date() };
-      query.isPaid = false;
+    // Filter by frequency if provided
+    if (req.query.frequency) {
+      query.frequency = req.query.frequency;
     }
     
-    // Filter by overdue bills
-    if (req.query.overdue === 'true') {
-      query.dueDate = { $lt: new Date() };
-      query.isPaid = false;
-    }
-    
-    // Filter by specific category
-    if (req.query.category) {
-      query.category = req.query.category;
+    // Filter by due date range if provided
+    if (req.query.startDate && req.query.endDate) {
+      query.dueDate = {
+        $gte: startOfDay(new Date(req.query.startDate)),
+        $lte: endOfDay(new Date(req.query.endDate))
+      };
+    } else if (req.query.startDate) {
+      query.dueDate = { $gte: startOfDay(new Date(req.query.startDate)) };
+    } else if (req.query.endDate) {
+      query.dueDate = { $lte: endOfDay(new Date(req.query.endDate)) };
     }
     
     // Sorting options
@@ -39,37 +40,18 @@ exports.getBills = async (req, res) => {
       const parts = req.query.sortBy.split(':');
       sort[parts[0]] = parts[1] === 'desc' ? -1 : 1;
     } else {
-      // Default sort by due date in ascending order (closest due date first)
+      // Default sort by due date (soonest first)
       sort.dueDate = 1;
     }
     
-    // Pagination
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const startIndex = (page - 1) * limit;
-    
-    // Execute query with pagination
+    // Execute query
     const bills = await Bill.find(query)
       .populate('category', 'name color icon')
-      .sort(sort)
-      .skip(startIndex)
-      .limit(limit);
-    
-    // Get total count for pagination
-    const total = await Bill.countDocuments(query);
-    
-    // Calculate pagination information
-    const pagination = {
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit)
-    };
+      .sort(sort);
     
     res.status(200).json({
       success: true,
       count: bills.length,
-      pagination,
       data: bills
     });
   } catch (err) {
@@ -129,29 +111,10 @@ exports.createBill = async (req, res) => {
     // Add user to request body
     req.body.user = req.user.id;
     
-    // Validate category if provided
-    if (req.body.category) {
-      const category = await Category.findById(req.body.category);
-      
-      if (!category) {
-        return res.status(404).json({
-          success: false,
-          message: 'Category not found'
-        });
-      }
-      
-      // Make sure category belongs to user
-      if (category.user.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to use this category'
-        });
-      }
-    }
-    
+    // Create bill
     const bill = await Bill.create(req.body);
     
-    // Populate the category details in the response
+    // Populate category details
     const populatedBill = await Bill.findById(bill._id).populate(
       'category',
       'name color icon'
@@ -193,26 +156,12 @@ exports.updateBill = async (req, res) => {
       });
     }
     
-    // Validate category if provided
-    if (req.body.category) {
-      const category = await Category.findById(req.body.category);
-      
-      if (!category) {
-        return res.status(404).json({
-          success: false,
-          message: 'Category not found'
-        });
-      }
-      
-      // Make sure category belongs to user
-      if (category.user.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to use this category'
-        });
-      }
+    // Don't allow direct manipulation of payments array through update
+    if (req.body.payments) {
+      delete req.body.payments;
     }
     
+    // Update bill
     bill = await Bill.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -279,6 +228,8 @@ exports.deleteBill = async (req, res) => {
  */
 exports.markBillAsPaid = async (req, res) => {
   try {
+    const { paymentAmount, paymentDate, paymentMethod, notes, createTransaction } = req.body;
+    
     let bill = await Bill.findById(req.params.id);
     
     if (!bill) {
@@ -296,56 +247,54 @@ exports.markBillAsPaid = async (req, res) => {
       });
     }
     
-    // Add payment to history
+    // Create payment record
     const payment = {
-      date: new Date(),
-      amount: req.body.amount || bill.amount,
-      notes: req.body.notes || `Payment for ${bill.name}`
+      amount: parseFloat(paymentAmount) || bill.amount,
+      date: paymentDate ? new Date(paymentDate) : new Date(),
+      method: paymentMethod || '',
+      notes: notes || ''
     };
     
-    bill.paymentHistory.push(payment);
+    // Create transaction if requested
+    if (createTransaction) {
+      const transactionData = {
+        description: `Payment for ${bill.name}`,
+        amount: payment.amount,
+        type: 'expense',
+        date: payment.date,
+        category: bill.category,
+        notes: `Bill payment: ${bill.name}`,
+        user: req.user.id
+      };
+      
+      const transaction = await Transaction.create(transactionData);
+      payment.transactionId = transaction._id;
+    }
     
-    // If it's a recurring bill, update due date to next occurrence
+    // Add payment to bill
+    bill.payments.push(payment);
+    
+    // Update bill status
+    bill.status = 'paid';
+    
+    // For recurring bills, update due date to next occurrence
     if (bill.frequency !== 'one-time') {
-      const currentDueDate = new Date(bill.dueDate);
-      let nextDueDate;
-      
-      switch (bill.frequency) {
-        case 'weekly':
-          nextDueDate = new Date(currentDueDate.setDate(currentDueDate.getDate() + 7));
-          break;
-        case 'monthly':
-          nextDueDate = new Date(currentDueDate.setMonth(currentDueDate.getMonth() + 1));
-          break;
-        case 'quarterly':
-          nextDueDate = new Date(currentDueDate.setMonth(currentDueDate.getMonth() + 3));
-          break;
-        case 'yearly':
-          nextDueDate = new Date(currentDueDate.setFullYear(currentDueDate.getFullYear() + 1));
-          break;
-        default:
-          nextDueDate = null;
-      }
-      
-      if (nextDueDate) {
-        bill.dueDate = nextDueDate;
-        bill.isPaid = false;
-      } else {
-        bill.isPaid = true;
-      }
-    } else {
-      // One-time bill
-      bill.isPaid = true;
+      const nextDueDate = bill.nextDueDate;
+      bill.dueDate = nextDueDate;
+      bill.status = 'pending'; // Reset status for next occurrence
     }
     
     await bill.save();
     
-    // Populate category information
-    bill = await Bill.findById(bill._id).populate('category', 'name color icon');
+    // Populate bill details
+    const updatedBill = await Bill.findById(bill._id).populate(
+      'category',
+      'name color icon'
+    );
     
     res.status(200).json({
       success: true,
-      data: bill
+      data: updatedBill
     });
   } catch (err) {
     res.status(500).json({
@@ -356,36 +305,145 @@ exports.markBillAsPaid = async (req, res) => {
 };
 
 /**
- * @desc    Get upcoming bills (due in the next X days)
+ * @desc    Skip current bill payment (for recurring bills)
+ * @route   PUT /api/bills/:id/skip
+ * @access  Private
+ */
+exports.skipBillPayment = async (req, res) => {
+  try {
+    let bill = await Bill.findById(req.params.id);
+    
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bill not found'
+      });
+    }
+    
+    // Make sure bill belongs to user
+    if (bill.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this bill'
+      });
+    }
+    
+    // Can only skip if bill is recurring
+    if (bill.frequency === 'one-time') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot skip a one-time bill'
+      });
+    }
+    
+    // Update bill status
+    bill.status = 'skipped';
+    
+    // Update due date to next occurrence
+    const nextDueDate = bill.nextDueDate;
+    bill.dueDate = nextDueDate;
+    bill.status = 'pending'; // Reset status for next occurrence
+    
+    await bill.save();
+    
+    // Populate bill details
+    const updatedBill = await Bill.findById(bill._id).populate(
+      'category',
+      'name color icon'
+    );
+    
+    res.status(200).json({
+      success: true,
+      data: updatedBill
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+/**
+ * @desc    Get upcoming bills/reminders
  * @route   GET /api/bills/upcoming
  * @access  Private
  */
 exports.getUpcomingBills = async (req, res) => {
   try {
-    // Default to 7 days if not specified
-    const days = parseInt(req.query.days, 10) || 7;
+    const daysAhead = parseInt(req.query.days) || 7;
+    const today = startOfDay(new Date());
+    const futureDate = endOfDay(addDays(today, daysAhead));
     
-    // Calculate the date range
-    const today = new Date();
-    const endDate = new Date();
-    endDate.setDate(today.getDate() + days);
-    
-    // Find upcoming bills
+    // Find bills due in the specified period
     const bills = await Bill.find({
       user: req.user.id,
-      isPaid: false,
+      status: 'pending',
       dueDate: {
         $gte: today,
-        $lte: endDate
+        $lte: futureDate
       }
     })
       .populate('category', 'name color icon')
       .sort({ dueDate: 1 });
     
+    // Find bills that are overdue
+    const overdueBills = await Bill.find({
+      user: req.user.id,
+      status: 'pending',
+      dueDate: { $lt: today }
+    })
+      .populate('category', 'name color icon')
+      .sort({ dueDate: 1 });
+    
+    // Calculate upcoming reminder dates for each bill
+    const reminders = [];
+    
+    // Add overdue bills as immediate reminders
+    overdueBills.forEach(bill => {
+      reminders.push({
+        bill: {
+          _id: bill._id,
+          name: bill.name,
+          amount: bill.amount,
+          dueDate: bill.dueDate,
+          frequency: bill.frequency,
+          category: bill.category
+        },
+        daysUntilDue: bill.daysUntilDue,
+        status: 'overdue'
+      });
+    });
+    
+    // Add upcoming bills based on their reminder settings
+    bills.forEach(bill => {
+      const daysUntilDue = bill.daysUntilDue;
+      
+      // If reminder is due based on the bill's reminderDays setting
+      if (daysUntilDue <= bill.reminderDays) {
+        reminders.push({
+          bill: {
+            _id: bill._id,
+            name: bill.name,
+            amount: bill.amount,
+            dueDate: bill.dueDate,
+            frequency: bill.frequency,
+            category: bill.category
+          },
+          daysUntilDue,
+          status: daysUntilDue <= 0 ? 'due' : 'upcoming'
+        });
+      }
+    });
+    
     res.status(200).json({
       success: true,
-      count: bills.length,
-      data: bills
+      count: reminders.length,
+      data: {
+        upcomingBills: bills,
+        overdueBills,
+        reminders
+      }
     });
   } catch (err) {
     res.status(500).json({
@@ -396,25 +454,104 @@ exports.getUpcomingBills = async (req, res) => {
 };
 
 /**
- * @desc    Get overdue bills
- * @route   GET /api/bills/overdue
+ * @desc    Get bill statistics
+ * @route   GET /api/bills/stats
  * @access  Private
  */
-exports.getOverdueBills = async (req, res) => {
+exports.getBillStats = async (req, res) => {
   try {
-    // Find bills that are past due date and not paid
-    const bills = await Bill.find({
+    const today = startOfDay(new Date());
+    
+    // Count bills by status
+    const counts = {
+      total: await Bill.countDocuments({ user: req.user.id }),
+      pending: await Bill.countDocuments({ user: req.user.id, status: 'pending' }),
+      paid: await Bill.countDocuments({ user: req.user.id, status: 'paid' }),
+      overdue: await Bill.countDocuments({ 
+        user: req.user.id, 
+        status: 'pending',
+        dueDate: { $lt: today }
+      }),
+      upcoming: await Bill.countDocuments({
+        user: req.user.id,
+        status: 'pending',
+        dueDate: { 
+          $gte: today,
+          $lte: addDays(today, 7)
+        }
+      })
+    };
+    
+    // Calculate total amounts
+    const pendingBills = await Bill.find({ 
+      user: req.user.id, 
+      status: 'pending'
+    });
+    
+    const upcomingBills = await Bill.find({
       user: req.user.id,
-      isPaid: false,
-      dueDate: { $lt: new Date() }
-    })
-      .populate('category', 'name color icon')
-      .sort({ dueDate: 1 });
+      status: 'pending',
+      dueDate: { 
+        $gte: today,
+        $lte: addDays(today, 30)
+      }
+    });
+    
+    const amounts = {
+      pendingTotal: pendingBills.reduce((sum, bill) => sum + bill.amount, 0),
+      upcomingMonthTotal: upcomingBills.reduce((sum, bill) => sum + bill.amount, 0)
+    };
+    
+    // Group bills by category
+    const billsByCategory = await Bill.aggregate([
+      {
+        $match: {
+          user: req.user._id,
+          status: 'pending'
+        }
+      },
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$amount' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'categoryDetails'
+        }
+      },
+      {
+        $unwind: {
+          path: '$categoryDetails',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          category: '$_id',
+          categoryName: { $ifNull: ['$categoryDetails.name', 'Uncategorized'] },
+          categoryColor: { $ifNull: ['$categoryDetails.color', '#CCCCCC'] },
+          count: 1,
+          totalAmount: 1
+        }
+      },
+      {
+        $sort: { totalAmount: -1 }
+      }
+    ]);
     
     res.status(200).json({
       success: true,
-      count: bills.length,
-      data: bills
+      data: {
+        counts,
+        amounts,
+        billsByCategory
+      }
     });
   } catch (err) {
     res.status(500).json({

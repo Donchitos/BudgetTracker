@@ -1,5 +1,5 @@
 const SavingsGoal = require('../models/SavingsGoal.model');
-const Category = require('../models/Category.model');
+const Transaction = require('../models/Transaction.model');
 
 /**
  * @desc    Get all savings goals for a user
@@ -11,17 +11,12 @@ exports.getSavingsGoals = async (req, res) => {
     // Build query with filtering options
     let query = { user: req.user.id };
     
-    // Filter by completion status if provided
-    if (req.query.isCompleted !== undefined) {
-      query.isCompleted = req.query.isCompleted === 'true';
+    // Filter by status if provided
+    if (req.query.status) {
+      query.status = req.query.status;
     }
     
-    // Filter by specific category
-    if (req.query.category) {
-      query.category = req.query.category;
-    }
-    
-    // Filter by priority
+    // Filter by priority if provided
     if (req.query.priority) {
       query.priority = req.query.priority;
     }
@@ -32,38 +27,19 @@ exports.getSavingsGoals = async (req, res) => {
       const parts = req.query.sortBy.split(':');
       sort[parts[0]] = parts[1] === 'desc' ? -1 : 1;
     } else {
-      // Default sort by target date in ascending order (closest target date first)
+      // Default sort by target date (closest first)
       sort.targetDate = 1;
     }
     
-    // Pagination
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const startIndex = (page - 1) * limit;
-    
-    // Execute query with pagination
-    const goals = await SavingsGoal.find(query)
+    // Execute query
+    const savingsGoals = await SavingsGoal.find(query)
       .populate('category', 'name color icon')
-      .sort(sort)
-      .skip(startIndex)
-      .limit(limit);
-    
-    // Get total count for pagination
-    const total = await SavingsGoal.countDocuments(query);
-    
-    // Calculate pagination information
-    const pagination = {
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit)
-    };
+      .sort(sort);
     
     res.status(200).json({
       success: true,
-      count: goals.length,
-      pagination,
-      data: goals
+      count: savingsGoals.length,
+      data: savingsGoals
     });
   } catch (err) {
     res.status(500).json({
@@ -80,20 +56,20 @@ exports.getSavingsGoals = async (req, res) => {
  */
 exports.getSavingsGoal = async (req, res) => {
   try {
-    const goal = await SavingsGoal.findById(req.params.id).populate(
+    const savingsGoal = await SavingsGoal.findById(req.params.id).populate(
       'category',
       'name color icon'
     );
     
-    if (!goal) {
+    if (!savingsGoal) {
       return res.status(404).json({
         success: false,
         message: 'Savings goal not found'
       });
     }
     
-    // Make sure goal belongs to user
-    if (goal.user.toString() !== req.user.id) {
+    // Make sure savings goal belongs to user
+    if (savingsGoal.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to access this savings goal'
@@ -102,7 +78,7 @@ exports.getSavingsGoal = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      data: goal
+      data: savingsGoal
     });
   } catch (err) {
     res.status(500).json({
@@ -122,31 +98,11 @@ exports.createSavingsGoal = async (req, res) => {
     // Add user to request body
     req.body.user = req.user.id;
     
-    // Validate category if provided
-    if (req.body.category) {
-      const category = await Category.findById(req.body.category);
-      
-      if (!category) {
-        return res.status(404).json({
-          success: false,
-          message: 'Category not found'
-        });
-      }
-      
-      // Make sure category belongs to user
-      if (category.user.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to use this category'
-        });
-      }
-    }
+    // Create savings goal
+    const savingsGoal = await SavingsGoal.create(req.body);
     
-    // Create the savings goal
-    const goal = await SavingsGoal.create(req.body);
-    
-    // Populate the category details in the response
-    const populatedGoal = await SavingsGoal.findById(goal._id).populate(
+    // Populate category details
+    const populatedGoal = await SavingsGoal.findById(savingsGoal._id).populate(
       'category',
       'name color icon'
     );
@@ -170,45 +126,30 @@ exports.createSavingsGoal = async (req, res) => {
  */
 exports.updateSavingsGoal = async (req, res) => {
   try {
-    let goal = await SavingsGoal.findById(req.params.id);
+    let savingsGoal = await SavingsGoal.findById(req.params.id);
     
-    if (!goal) {
+    if (!savingsGoal) {
       return res.status(404).json({
         success: false,
         message: 'Savings goal not found'
       });
     }
     
-    // Make sure goal belongs to user
-    if (goal.user.toString() !== req.user.id) {
+    // Make sure savings goal belongs to user
+    if (savingsGoal.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this savings goal'
       });
     }
     
-    // Validate category if provided
-    if (req.body.category) {
-      const category = await Category.findById(req.body.category);
-      
-      if (!category) {
-        return res.status(404).json({
-          success: false,
-          message: 'Category not found'
-        });
-      }
-      
-      // Make sure category belongs to user
-      if (category.user.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to use this category'
-        });
-      }
+    // Don't allow direct manipulation of contributions array through update
+    if (req.body.contributions) {
+      delete req.body.contributions;
     }
     
-    // Update goal
-    goal = await SavingsGoal.findByIdAndUpdate(
+    // Update savings goal
+    savingsGoal = await SavingsGoal.findByIdAndUpdate(
       req.params.id,
       req.body,
       {
@@ -217,15 +158,9 @@ exports.updateSavingsGoal = async (req, res) => {
       }
     ).populate('category', 'name color icon');
     
-    // Check if goal is completed after update
-    if (goal.currentAmount >= goal.targetAmount && !goal.isCompleted) {
-      goal.isCompleted = true;
-      await goal.save();
-    }
-    
     res.status(200).json({
       success: true,
-      data: goal
+      data: savingsGoal
     });
   } catch (err) {
     res.status(500).json({
@@ -242,24 +177,24 @@ exports.updateSavingsGoal = async (req, res) => {
  */
 exports.deleteSavingsGoal = async (req, res) => {
   try {
-    const goal = await SavingsGoal.findById(req.params.id);
+    const savingsGoal = await SavingsGoal.findById(req.params.id);
     
-    if (!goal) {
+    if (!savingsGoal) {
       return res.status(404).json({
         success: false,
         message: 'Savings goal not found'
       });
     }
     
-    // Make sure goal belongs to user
-    if (goal.user.toString() !== req.user.id) {
+    // Make sure savings goal belongs to user
+    if (savingsGoal.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this savings goal'
       });
     }
     
-    await goal.remove();
+    await savingsGoal.remove();
     
     res.status(200).json({
       success: true,
@@ -274,59 +209,83 @@ exports.deleteSavingsGoal = async (req, res) => {
 };
 
 /**
- * @desc    Add contribution to savings goal
- * @route   POST /api/savings/:id/contribute
+ * @desc    Add contribution to a savings goal
+ * @route   POST /api/savings/:id/contributions
  * @access  Private
  */
 exports.addContribution = async (req, res) => {
   try {
+    const { amount, notes } = req.body;
+    
     // Validate input
-    if (!req.body.amount || req.body.amount <= 0) {
+    if (!amount || amount <= 0) {
       return res.status(400).json({
         success: false,
         message: 'Please provide a valid contribution amount'
       });
     }
     
-    const goal = await SavingsGoal.findById(req.params.id);
+    let savingsGoal = await SavingsGoal.findById(req.params.id);
     
-    if (!goal) {
+    if (!savingsGoal) {
       return res.status(404).json({
         success: false,
         message: 'Savings goal not found'
       });
     }
     
-    // Make sure goal belongs to user
-    if (goal.user.toString() !== req.user.id) {
+    // Make sure savings goal belongs to user
+    if (savingsGoal.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this savings goal'
+        message: 'Not authorized to contribute to this savings goal'
       });
     }
     
-    // Create contribution object
-    const contribution = {
-      date: new Date(),
-      amount: req.body.amount,
-      notes: req.body.notes || `Contribution to ${goal.name}`
-    };
-    
-    // Add contribution to history
-    goal.contributions.push(contribution);
-    
-    // Update current amount
-    goal.currentAmount += req.body.amount;
-    
-    // Check if goal is now completed
-    if (goal.currentAmount >= goal.targetAmount) {
-      goal.isCompleted = true;
+    // Don't allow contributions to completed/cancelled goals
+    if (savingsGoal.status !== 'in_progress') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot contribute to a ${savingsGoal.status} goal`
+      });
     }
     
-    await goal.save();
+    // Create contribution
+    const contribution = {
+      amount,
+      date: new Date(),
+      notes: notes || ''
+    };
     
-    // Populate category information
-    const updatedGoal = await SavingsGoal.findById(goal._id).populate(
+    // Add contribution to goal
+    savingsGoal.contributions.push(contribution);
+    
+    // Update current amount
+    savingsGoal.currentAmount += parseFloat(amount);
+    
+    // Check if goal is reached
+    if (savingsGoal.currentAmount >= savingsGoal.targetAmount) {
+      savingsGoal.status = 'completed';
+    }
+    
+    // Save updated goal
+    await savingsGoal.save();
+    
+    // Optional: Create a transaction record linked to this contribution
+    const transactionData = {
+      description: `Contribution to ${savingsGoal.name}`,
+      amount: parseFloat(amount),
+      type: 'expense', // Could be customized based on your app's logic
+      date: new Date(),
+      category: savingsGoal.category,
+      notes: `Savings goal contribution: ${savingsGoal.name}`,
+      user: req.user.id
+    };
+    
+    await Transaction.create(transactionData);
+    
+    // Return updated goal
+    const updatedGoal = await SavingsGoal.findById(req.params.id).populate(
       'category',
       'name color icon'
     );
@@ -344,49 +303,121 @@ exports.addContribution = async (req, res) => {
 };
 
 /**
- * @desc    Get summary of all savings goals
- * @route   GET /api/savings/summary
+ * @desc    Change savings goal status (complete/cancel)
+ * @route   PUT /api/savings/:id/status
  * @access  Private
  */
-exports.getSavingsSummary = async (req, res) => {
+exports.changeGoalStatus = async (req, res) => {
   try {
-    // Get all savings goals for the user
-    const goals = await SavingsGoal.find({ user: req.user.id });
+    const { status } = req.body;
     
-    // Calculate total saved and total targets
-    const totalSaved = goals.reduce((total, goal) => total + goal.currentAmount, 0);
-    const totalTargets = goals.reduce((total, goal) => total + goal.targetAmount, 0);
+    // Validate status
+    if (!status || !['in_progress', 'completed', 'cancelled'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid status (in_progress, completed, cancelled)'
+      });
+    }
     
-    // Calculate overall progress percentage
-    const overallProgress = totalTargets > 0 
-      ? Math.round((totalSaved / totalTargets) * 100) 
-      : 0;
+    let savingsGoal = await SavingsGoal.findById(req.params.id);
     
-    // Get counts
-    const completedCount = goals.filter(goal => goal.isCompleted).length;
-    const inProgressCount = goals.length - completedCount;
+    if (!savingsGoal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Savings goal not found'
+      });
+    }
     
-    // Get upcoming goals (target date within the next 30 days)
-    const today = new Date();
-    const thirtyDaysFromNow = new Date(today);
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
+    // Make sure savings goal belongs to user
+    if (savingsGoal.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this savings goal'
+      });
+    }
     
-    const upcomingGoals = goals.filter(goal => {
-      if (goal.isCompleted) return false;
-      const targetDate = new Date(goal.targetDate);
-      return targetDate >= today && targetDate <= thirtyDaysFromNow;
+    // Update status
+    savingsGoal.status = status;
+    
+    // Auto-update current amount if completing
+    if (status === 'completed' && savingsGoal.currentAmount < savingsGoal.targetAmount) {
+      savingsGoal.currentAmount = savingsGoal.targetAmount;
+    }
+    
+    // Save updated goal
+    await savingsGoal.save();
+    
+    // Return updated goal
+    const updatedGoal = await SavingsGoal.findById(req.params.id).populate(
+      'category',
+      'name color icon'
+    );
+    
+    res.status(200).json({
+      success: true,
+      data: updatedGoal
     });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+/**
+ * @desc    Get savings goal statistics for a user
+ * @route   GET /api/savings/stats
+ * @access  Private
+ */
+exports.getSavingsStats = async (req, res) => {
+  try {
+    // Get all user's savings goals
+    const savingsGoals = await SavingsGoal.find({ user: req.user.id });
+    
+    // Calculate statistics
+    const totalGoals = savingsGoals.length;
+    const completedGoals = savingsGoals.filter(goal => goal.status === 'completed').length;
+    const inProgressGoals = savingsGoals.filter(goal => goal.status === 'in_progress').length;
+    const cancelledGoals = savingsGoals.filter(goal => goal.status === 'cancelled').length;
+    
+    // Calculate total amounts
+    const totalTargetAmount = savingsGoals.reduce((sum, goal) => sum + goal.targetAmount, 0);
+    const totalCurrentAmount = savingsGoals.reduce((sum, goal) => sum + goal.currentAmount, 0);
+    const completionPercentage = totalTargetAmount > 0 ? (totalCurrentAmount / totalTargetAmount) * 100 : 0;
+    
+    // Get goals with upcoming target dates
+    const today = new Date();
+    const upcomingGoals = savingsGoals
+      .filter(goal => goal.status === 'in_progress' && new Date(goal.targetDate) > today)
+      .sort((a, b) => new Date(a.targetDate) - new Date(b.targetDate))
+      .slice(0, 5);
+    
+    // Get recently completed goals
+    const recentlyCompletedGoals = savingsGoals
+      .filter(goal => goal.status === 'completed')
+      .sort((a, b) => {
+        const aDate = a.contributions.length > 0 ? 
+          new Date(a.contributions[a.contributions.length - 1].date) : new Date(a.createdAt);
+        const bDate = b.contributions.length > 0 ? 
+          new Date(b.contributions[b.contributions.length - 1].date) : new Date(b.createdAt);
+        return bDate - aDate;
+      })
+      .slice(0, 5);
     
     res.status(200).json({
       success: true,
       data: {
-        totalSaved,
-        totalTargets,
-        overallProgress,
-        totalGoals: goals.length,
-        completedGoals: completedCount,
-        inProgressGoals: inProgressCount,
-        upcomingGoals: upcomingGoals.length
+        totalGoals,
+        completedGoals,
+        inProgressGoals,
+        cancelledGoals,
+        totalTargetAmount,
+        totalCurrentAmount,
+        remainingAmount: totalTargetAmount - totalCurrentAmount,
+        completionPercentage,
+        upcomingGoals,
+        recentlyCompletedGoals
       }
     });
   } catch (err) {

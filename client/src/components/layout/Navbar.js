@@ -22,10 +22,13 @@ const navItems = [
   { title: 'Dashboard', path: '/' },
   { title: 'Transactions', path: '/transactions' },
   { title: 'Categories', path: '/categories' },
+  { title: 'Budget', path: '/budget' },
   { title: 'Bills', path: '/bills' },
   { title: 'Savings', path: '/savings' },
+  { title: 'Recurring', path: '/recurring-transactions' },
   { title: 'Reports', path: '/reports' },
-  { title: 'Budget Templates', path: '/budget-templates' }
+  { title: 'Budget Templates', path: '/budget-templates' },
+  { title: 'Import/Export', path: '/import-export' }
 ];
 
 const Navbar = () => {

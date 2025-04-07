@@ -6,6 +6,7 @@ import dashboardReducer from './dashboardReducer';
 import billReducer from './billReducer';
 import savingsReducer from './savingsReducer';
 import budgetTemplateReducer from './budgetTemplateReducer';
+import recurringTransactionReducer from './recurringTransactionReducer';
 
 export default combineReducers({
   auth: authReducer,
@@ -14,5 +15,6 @@ export default combineReducers({
   dashboard: dashboardReducer,
   bills: billReducer,
   savings: savingsReducer,
-  budgetTemplates: budgetTemplateReducer
+  budgetTemplates: budgetTemplateReducer,
+  recurringTransactions: recurringTransactionReducer
 });

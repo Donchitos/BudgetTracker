@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -6,40 +6,53 @@ import {
   DialogActions,
   TextField,
   Button,
-  Box,
-  Typography,
+  Grid,
   InputAdornment,
-  LinearProgress
+  Typography,
+  Box,
+  LinearProgress,
+  Alert
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
-
-// Styled linear progress with custom colors
-const StyledLinearProgress = styled(LinearProgress)(({ theme, value }) => ({
-  height: 10,
-  borderRadius: 5,
-  '& .MuiLinearProgress-bar': {
-    borderRadius: 5,
-    backgroundColor: value >= 100 ? theme.palette.success.main :
-                   value >= 75 ? theme.palette.success.light :
-                   value >= 50 ? theme.palette.warning.light :
-                   theme.palette.error.light,
-  },
-}));
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import PaymentIcon from '@mui/icons-material/Payment';
 
 const ContributionForm = ({ open, onClose, onSubmit, goal }) => {
-  // State for contribution amount
   const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(new Date());
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   
-  // Reset form when the dialog opens
-  useEffect(() => {
+  // Reset form when dialog opens
+  React.useEffect(() => {
     if (open) {
       setAmount('');
-      setNotes(`Contribution to ${goal?.name || 'savings goal'}`);
+      setDate(new Date());
+      setNotes('');
       setError('');
     }
-  }, [open, goal]);
+  }, [open]);
+  
+  // Format currency
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+  
+  // Get progress percentage
+  const getProgressPercentage = () => {
+    if (!goal || goal.targetAmount <= 0) return 0;
+    
+    const currentAmount = goal.currentAmount || 0;
+    const additionalAmount = parseFloat(amount) || 0;
+    
+    return Math.min(100, ((currentAmount + additionalAmount) / goal.targetAmount) * 100);
+  };
   
   // Handle amount change
   const handleAmountChange = (e) => {
@@ -47,137 +60,146 @@ const ContributionForm = ({ open, onClose, onSubmit, goal }) => {
     setError('');
   };
   
-  // Handle notes change
-  const handleNotesChange = (e) => {
-    setNotes(e.target.value);
-  };
-  
-  // Validate and submit form
+  // Handle form submission
   const handleSubmit = () => {
     // Validate amount
-    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-      setError('Please enter a valid amount greater than zero');
+    if (!amount || parseFloat(amount) <= 0) {
+      setError('Please enter a valid amount');
       return;
     }
     
+    // Submit contribution
     onSubmit({
       amount: parseFloat(amount),
+      date,
       notes
     });
-  };
-  
-  // Format currency for display
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-  
-  // Calculate new progress after contribution
-  const calculateNewProgress = () => {
-    if (!goal || !amount || isNaN(amount)) return goal?.progressPercentage || 0;
-    
-    const newAmount = goal.currentAmount + parseFloat(amount);
-    return Math.min(100, Math.round((newAmount / goal.targetAmount) * 100));
-  };
-  
-  // Calculate remaining amount after contribution
-  const calculateRemainingAmount = () => {
-    if (!goal || !amount || isNaN(amount)) return goal?.remainingAmount || 0;
-    
-    return Math.max(0, goal.targetAmount - (goal.currentAmount + parseFloat(amount)));
-  };
-  
-  // Check if goal will be completed with this contribution
-  const willCompleteGoal = () => {
-    if (!goal || !amount || isNaN(amount)) return false;
-    
-    return (goal.currentAmount + parseFloat(amount)) >= goal.targetAmount;
   };
   
   if (!goal) return null;
   
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add Contribution to {goal.name}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle>
+        Add Contribution to "{goal.name}"
+      </DialogTitle>
+      
       <DialogContent>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Current Progress
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="body2">
-              {formatCurrency(goal.currentAmount)} of {formatCurrency(goal.targetAmount)}
-            </Typography>
-            <Typography variant="body2" fontWeight="bold">
-              {goal.progressPercentage}%
-            </Typography>
-          </Box>
-          <StyledLinearProgress variant="determinate" value={goal.progressPercentage} />
-        </Box>
-        
-        <TextField
-          autoFocus
-          margin="dense"
-          id="amount"
-          label="Contribution Amount"
-          type="number"
-          fullWidth
-          value={amount}
-          onChange={handleAmountChange}
-          error={!!error}
-          helperText={error}
-          InputProps={{
-            startAdornment: <InputAdornment position="start">$</InputAdornment>,
-          }}
-          sx={{ mb: 3 }}
-        />
-        
-        <TextField
-          margin="dense"
-          id="notes"
-          label="Notes"
-          type="text"
-          fullWidth
-          value={notes}
-          onChange={handleNotesChange}
-          sx={{ mb: 3 }}
-        />
-        
-        {amount && !isNaN(amount) && parseFloat(amount) > 0 && (
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle2" gutterBottom>
-              After this contribution:
-            </Typography>
-            
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="body2">
-                New balance: {formatCurrency(goal.currentAmount + parseFloat(amount))}
+        <Grid container spacing={3} sx={{ mt: 0.5 }}>
+          <Grid item xs={12}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Current Progress
               </Typography>
-              <Typography variant="body2" fontWeight="bold">
-                {calculateNewProgress()}%
-              </Typography>
-            </Box>
-            <StyledLinearProgress variant="determinate" value={calculateNewProgress()} />
-            
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2">
-                Remaining to goal: {formatCurrency(calculateRemainingAmount())}
-              </Typography>
-              
-              {willCompleteGoal() && (
-                <Typography variant="body2" color="success.main" sx={{ mt: 1, fontWeight: 'bold' }}>
-                  This contribution will complete your goal! 🎉
+              <LinearProgress 
+                variant="determinate" 
+                value={goal.progressPercentage || 0}
+                sx={{ height: 10, borderRadius: 5, mb: 1 }}
+              />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2">
+                  {formatCurrency(goal.currentAmount || 0)}
                 </Typography>
-              )}
+                <Typography variant="body2" color="text.secondary">
+                  {formatCurrency(goal.targetAmount || 0)}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-        )}
+          </Grid>
+          
+          <Grid item xs={12}>
+            <TextField
+              label="Contribution Amount"
+              value={amount}
+              onChange={handleAmountChange}
+              fullWidth
+              type="number"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+              error={!!error}
+              helperText={error}
+              autoFocus
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Date"
+                value={date}
+                onChange={(newDate) => setDate(newDate)}
+                renderInput={(params) => <TextField {...params} fullWidth />}
+                maxDate={new Date()}
+              />
+            </LocalizationProvider>
+          </Grid>
+          
+          <Grid item xs={12}>
+            <TextField
+              label="Notes (Optional)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              fullWidth
+              multiline
+              rows={2}
+              placeholder="e.g., Source of funds, special occasion"
+            />
+          </Grid>
+          
+          {/* Preview of new progress */}
+          {amount && parseFloat(amount) > 0 && (
+            <Grid item xs={12}>
+              <Box sx={{ mt: 1, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  After This Contribution
+                </Typography>
+                
+                <LinearProgress 
+                  variant="determinate" 
+                  value={getProgressPercentage()}
+                  color="success"
+                  sx={{ height: 10, borderRadius: 5, mb: 1 }}
+                />
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">
+                    {formatCurrency((goal.currentAmount || 0) + (parseFloat(amount) || 0))}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatCurrency(goal.targetAmount || 0)}
+                  </Typography>
+                </Box>
+                
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  New progress: {getProgressPercentage().toFixed(1)}%
+                  {getProgressPercentage() >= 100 && (
+                    <Alert severity="success" sx={{ mt: 1 }}>
+                      This contribution will complete your savings goal!
+                    </Alert>
+                  )}
+                </Typography>
+              </Box>
+            </Grid>
+          )}
+        </Grid>
       </DialogContent>
+      
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained" color="primary">
+        <Button onClick={onClose} color="inherit">
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          variant="contained" 
+          color="primary"
+          startIcon={<PaymentIcon />}
+        >
           Add Contribution
         </Button>
       </DialogActions>

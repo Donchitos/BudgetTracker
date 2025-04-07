@@ -1,122 +1,215 @@
 import {
   GET_BILLS,
+  GET_BILLS_SUCCESS,
+  GET_BILLS_FAIL,
   GET_BILL,
-  ADD_BILL,
+  GET_BILL_SUCCESS,
+  GET_BILL_FAIL,
+  CREATE_BILL,
+  CREATE_BILL_SUCCESS,
+  CREATE_BILL_FAIL,
   UPDATE_BILL,
+  UPDATE_BILL_SUCCESS,
+  UPDATE_BILL_FAIL,
   DELETE_BILL,
+  DELETE_BILL_SUCCESS,
+  DELETE_BILL_FAIL,
   MARK_BILL_PAID,
-  BILL_ERROR,
-  CLEAR_BILLS,
+  MARK_BILL_PAID_SUCCESS,
+  MARK_BILL_PAID_FAIL,
   GET_UPCOMING_BILLS,
-  GET_OVERDUE_BILLS
+  GET_UPCOMING_BILLS_SUCCESS,
+  GET_UPCOMING_BILLS_FAIL,
+  GET_BILL_STATS,
+  GET_BILL_STATS_SUCCESS,
+  GET_BILL_STATS_FAIL,
+  CLEAR_BILL_ERROR
 } from '../types';
 
 const initialState = {
   bills: [],
   bill: null,
-  upcomingBills: [],
-  overdueBills: [],
-  pagination: null,
-  loading: true,
+  upcomingBills: null,
+  reminders: [],
+  stats: null,
+  loading: false,
   error: null
 };
 
-export default function billReducer(state = initialState, action) {
-  const { type, payload } = action;
-
-  switch (type) {
+export default function(state = initialState, action) {
+  switch (action.type) {
+    // Get all bills
     case GET_BILLS:
       return {
         ...state,
-        bills: payload.data,
-        pagination: payload.pagination,
+        loading: true
+      };
+    case GET_BILLS_SUCCESS:
+      return {
+        ...state,
         loading: false,
-        error: null
+        bills: action.payload.data
+      };
+    case GET_BILLS_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
       };
     
+    // Get single bill
     case GET_BILL:
       return {
         ...state,
-        bill: payload,
-        loading: false,
-        error: null
+        loading: true
       };
-    
-    case ADD_BILL:
+    case GET_BILL_SUCCESS:
       return {
         ...state,
-        bills: [payload, ...state.bills],
         loading: false,
-        error: null
+        bill: action.payload.data
+      };
+    case GET_BILL_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
       };
     
+    // Create bill
+    case CREATE_BILL:
+      return {
+        ...state,
+        loading: true
+      };
+    case CREATE_BILL_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        bills: [
+          action.payload.data,
+          ...state.bills
+        ]
+      };
+    case CREATE_BILL_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
+      };
+    
+    // Update bill
     case UPDATE_BILL:
       return {
         ...state,
-        bills: state.bills.map(bill =>
-          bill._id === payload._id ? payload : bill
-        ),
-        bill: payload,
+        loading: true
+      };
+    case UPDATE_BILL_SUCCESS:
+      return {
+        ...state,
         loading: false,
-        error: null
+        bills: state.bills.map(bill =>
+          bill._id === action.payload.data._id ? action.payload.data : bill
+        ),
+        bill: action.payload.data
+      };
+    case UPDATE_BILL_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
       };
     
+    // Delete bill
     case DELETE_BILL:
       return {
         ...state,
-        bills: state.bills.filter(bill => bill._id !== payload),
-        loading: false,
-        error: null
+        loading: true
       };
-    
-    case MARK_BILL_PAID:
-      // Need to handle differently depending on whether it's a recurring bill
-      // If it's recurring, update it, but if one-time, might need to filter it out
+    case DELETE_BILL_SUCCESS:
       return {
         ...state,
-        bills: state.bills.map(bill =>
-          bill._id === payload._id ? payload : bill
-        ),
-        bill: payload,
-        // Also update in upcoming or overdue if present
-        upcomingBills: state.upcomingBills.filter(bill => bill._id !== payload._id),
-        overdueBills: state.overdueBills.filter(bill => bill._id !== payload._id),
         loading: false,
-        error: null
+        bills: state.bills.filter(
+          bill => bill._id !== action.payload
+        )
+      };
+    case DELETE_BILL_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
       };
     
+    // Mark bill as paid (or skip payment)
+    case MARK_BILL_PAID:
+      return {
+        ...state,
+        loading: true
+      };
+    case MARK_BILL_PAID_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        bills: state.bills.map(bill =>
+          bill._id === action.payload.data._id ? action.payload.data : bill
+        ),
+        bill: action.payload.data
+      };
+    case MARK_BILL_PAID_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
+      };
+    
+    // Get upcoming bills and reminders
     case GET_UPCOMING_BILLS:
       return {
         ...state,
-        upcomingBills: payload.data,
+        loading: true
+      };
+    case GET_UPCOMING_BILLS_SUCCESS:
+      return {
+        ...state,
         loading: false,
-        error: null
+        upcomingBills: action.payload.data.upcomingBills,
+        overdueBills: action.payload.data.overdueBills,
+        reminders: action.payload.data.reminders
       };
-    
-    case GET_OVERDUE_BILLS:
+    case GET_UPCOMING_BILLS_FAIL:
       return {
         ...state,
-        overdueBills: payload.data,
         loading: false,
-        error: null
+        error: action.payload
       };
     
-    case BILL_ERROR:
+    // Get bill statistics
+    case GET_BILL_STATS:
       return {
         ...state,
-        error: payload,
-        loading: false
+        loading: true
       };
-    
-    case CLEAR_BILLS:
+    case GET_BILL_STATS_SUCCESS:
       return {
         ...state,
-        bills: [],
-        pagination: null,
-        loading: true,
-        error: null
+        loading: false,
+        stats: action.payload.data
+      };
+    case GET_BILL_STATS_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
       };
     
+    // Clear error
+    case CLEAR_BILL_ERROR:
+      return {
+        ...state,
+        error: null
+      };
+      
     default:
       return state;
   }
