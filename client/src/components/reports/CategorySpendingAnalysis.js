@@ -1,3 +1,5 @@
+import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -38,7 +40,7 @@ import {
   startOfYear,
   endOfYear,
   getMonth,
-  subYears
+  subYears, addYears
 } from 'date-fns';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import DownloadIcon from '@mui/icons-material/Download';

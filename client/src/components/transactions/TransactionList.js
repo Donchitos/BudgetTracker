@@ -146,73 +146,75 @@ const TransactionList = () => {
       </Box>
       
       {/* Filters - Desktop Version */}
-      {!isMobile && <Box sx={{ mb: 3 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="type-filter-label">Type</InputLabel>
-              <Select
-                labelId="type-filter-label"
-                name="type"
-                value={filters.type}
-                label="Type"
+      {!isMobile && (
+        <Box sx={{ mb: 3 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="type-filter-label">Type</InputLabel>
+                <Select
+                  labelId="type-filter-label"
+                  name="type"
+                  value={filters.type}
+                  label="Type"
+                  onChange={handleFilterChange}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="income">Income</MenuItem>
+                  <MenuItem value="expense">Expense</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="category-filter-label">Category</InputLabel>
+                <Select
+                  labelId="category-filter-label"
+                  name="category"
+                  value={filters.category}
+                  label="Category"
+                  onChange={handleFilterChange}
+                  disabled={!categories || categories.length === 0}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {categories && categories.map(category => (
+                    <MenuItem key={category._id} value={category._id}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                name="startDate"
+                label="Start Date"
+                type="date"
+                value={filters.startDate}
                 onChange={handleFilterChange}
-              >
-                <MenuItem value="">All</MenuItem>
-                <MenuItem value="income">Income</MenuItem>
-                <MenuItem value="expense">Expense</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="category-filter-label">Category</InputLabel>
-              <Select
-                labelId="category-filter-label"
-                name="category"
-                value={filters.category}
-                label="Category"
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                name="endDate"
+                label="End Date"
+                type="date"
+                value={filters.endDate}
                 onChange={handleFilterChange}
-                disabled={!categories || categories.length === 0}
-              >
-                <MenuItem value="">All</MenuItem>
-                {categories && categories.map(category => (
-                  <MenuItem key={category._id} value={category._id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                size="small"
+              />
+            </Grid>
           </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              name="startDate"
-              label="Start Date"
-              type="date"
-              value={filters.startDate}
-              onChange={handleFilterChange}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-              size="small"
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              name="endDate"
-              label="End Date"
-              type="date"
-              value={filters.endDate}
-              onChange={handleFilterChange}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-              size="small"
-            />
-          </Grid>
-        </Grid>
-      </Box>
+        </Box>
+      )}
       
       {/* Mobile Filters */}
       {isMobile && (

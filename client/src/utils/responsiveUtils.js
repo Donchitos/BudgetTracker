@@ -28,13 +28,13 @@ export const useIsDesktop = () => {
 };
 
 /**
- * Get a responsive value based on screen size
+ * Custom hook to get a responsive value based on screen size
  * @param {any} mobile - Value for mobile screens
  * @param {any} tablet - Value for tablet screens (optional)
  * @param {any} desktop - Value for desktop screens
  * @returns {any} Responsive value
  */
-export const responsiveValue = (mobile, tablet, desktop) => {
+export const useResponsiveValue = (mobile, tablet, desktop) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
@@ -43,6 +43,17 @@ export const responsiveValue = (mobile, tablet, desktop) => {
     return mobile;
   } else if (isTablet) {
     return tablet || desktop; // Fallback to desktop if tablet value is not provided
+  } else {
+    return desktop;
+  }
+};
+
+// Non-hook version that takes screen size as input
+export const getResponsiveValue = (screenSize, mobile, tablet, desktop) => {
+  if (screenSize === 'mobile') {
+    return mobile;
+  } else if (screenSize === 'tablet') {
+    return tablet || desktop;
   } else {
     return desktop;
   }
