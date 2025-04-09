@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Typography, Paper, Divider, Button, IconButton } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Paper, Divider, Button, IconButton, CircularProgress, Alert, Snackbar } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import AddIcon from '@mui/icons-material/Add';
@@ -15,14 +15,37 @@ import SavingsGoalDashboard from './SavingsGoalDashboard';
  * Mobile-optimized Dashboard component that reorganizes content for smaller screens
  */
 const MobileDashboard = () => {
+  // Track loading state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Dispatch any necessary refresh actions here
+      // For demo, we'll use a timeout to simulate loading
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5" component="h1">
           Dashboard
         </Typography>
-        <IconButton color="primary" aria-label="refresh" size="small">
-          <SyncIcon />
+        <IconButton
+          color="primary"
+          aria-label="refresh"
+          size="small"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        >
+          {isRefreshing ? <CircularProgress size={20} /> : <SyncIcon />}
         </IconButton>
       </Box>
       

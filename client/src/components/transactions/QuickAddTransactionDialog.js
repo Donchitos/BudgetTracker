@@ -17,8 +17,13 @@ import {
   FormControlLabel,
   Switch,
   Typography,
-  Grid
+  Grid,
+  CircularProgress,
+  Fade,
+  Alert
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -36,6 +41,8 @@ import { addTransaction } from '../../redux/actions/transactionActions';
 const QuickAddTransactionDialog = ({ open, onClose }) => {
   const dispatch = useDispatch();
   const { categories } = useSelector(state => state.categories);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
   
   // Default transaction date to today
   const today = new Date();
@@ -126,6 +133,7 @@ const QuickAddTransactionDialog = ({ open, onClose }) => {
   // Submit transaction
   const handleSubmit = async () => {
     if (validateForm()) {
+      setIsSubmitting(true);
       try {
         // Format the transaction for API submission
         const formattedTransaction = {
@@ -135,9 +143,19 @@ const QuickAddTransactionDialog = ({ open, onClose }) => {
         };
         
         await dispatch(addTransaction(formattedTransaction));
-        onClose();
+        setSubmitSuccess(true);
+        
+        // Close dialog after showing success message briefly
+        setTimeout(() => {
+          onClose();
+          // Reset success state after closing
+          setTimeout(() => setSubmitSuccess(false), 300);
+        }, 1200);
       } catch (error) {
         console.error('Error adding transaction:', error);
+        setErrors({ submit: 'Failed to add transaction. Please try again.' });
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
@@ -145,10 +163,11 @@ const QuickAddTransactionDialog = ({ open, onClose }) => {
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={isSubmitting ? undefined : onClose}
       fullWidth
       maxWidth="sm"
       aria-labelledby="quick-add-transaction-dialog"
+      disableEscapeKeyDown={isSubmitting}
     >
       <DialogTitle id="quick-add-transaction-dialog">
         Quick Add Transaction
@@ -161,6 +180,7 @@ const QuickAddTransactionDialog = ({ open, onClose }) => {
             top: 8,
             color: (theme) => theme.palette.grey[500],
           }}
+          disabled={isSubmitting}
         >
           <CloseIcon />
         </IconButton>
@@ -233,13 +253,12 @@ const QuickAddTransactionDialog = ({ open, onClose }) => {
                 label="Date"
                 value={transaction.date}
                 onChange={handleDateChange}
-                renderInput={(params) => (
-                  <TextField 
-                    {...params} 
-                    margin="dense" 
-                    fullWidth 
-                  />
-                )}
+                slotProps={{
+                  textField: {
+                    margin: "dense",
+                    fullWidth: true,
+                  },
+                }}
               />
             </LocalizationProvider>
           </Grid>
@@ -288,15 +307,33 @@ const QuickAddTransactionDialog = ({ open, onClose }) => {
       </DialogContent>
       
       <DialogActions>
-        <Button onClick={onClose} color="inherit">
+        {submitSuccess ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main', mr: 2, ml: 'auto' }}>
+            <CheckCircleIcon sx={{ mr: 1 }} fontSize="small" />
+            <Typography variant="body2">Transaction added successfully!</Typography>
+          </Box>
+        ) : errors.submit ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main', mr: 2 }}>
+            <ErrorIcon sx={{ mr: 1 }} fontSize="small" />
+            <Typography variant="body2">{errors.submit}</Typography>
+          </Box>
+        ) : null}
+        
+        <Button
+          onClick={onClose}
+          color="inherit"
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
-        <Button 
-          onClick={handleSubmit} 
-          color="primary" 
+        <Button
+          onClick={handleSubmit}
+          color="primary"
           variant="contained"
+          disabled={isSubmitting}
+          startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
         >
-          Add Transaction
+          {isSubmitting ? 'Adding...' : 'Add Transaction'}
         </Button>
       </DialogActions>
     </Dialog>

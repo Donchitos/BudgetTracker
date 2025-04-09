@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   Paper,
   Typography,
@@ -12,9 +12,13 @@ import {
   Divider,
   IconButton,
   Tooltip,
-  useTheme
+  useTheme,
+  CircularProgress,
+  Skeleton,
+  Button,
+  Alert
 } from '@mui/material';
-import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { alpha } from '@mui/material/styles';
@@ -27,18 +31,29 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
  */
 const BudgetVsActualChart = () => {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const { categories } = useSelector(state => state.categories);
   const { transactions } = useSelector(state => state.transactions);
   
-  // Chart data
-  const [data, setData] = useState([]);
+  // Chart data and UI state
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const [timeframe, setTimeframe] = useState('current');
   const [viewMode, setViewMode] = useState('byCategory');
   const [chartData, setChartData] = useState([]);
   
   // Calculate chart data based on transactions and categories
   useEffect(() => {
-    if (!categories || !transactions) return;
+    if (!categories || !transactions) {
+      setLoading(false);
+      return;
+    }
+    
+    // Set loading state on first load only
+    if (chartData.length === 0 && !refreshing) {
+      setLoading(true);
+    }
     
     // Get date range based on selected timeframe
     const getDateRange = () => {
@@ -122,6 +137,12 @@ const BudgetVsActualChart = () => {
         }
       ]);
     }
+    
+    // Clear loading and error states
+    setLoading(false);
+    setRefreshing(false);
+    setError(null);
+    
   }, [categories, transactions, timeframe, viewMode]);
   
   // Get random color based on string
@@ -219,10 +240,32 @@ const BudgetVsActualChart = () => {
     setViewMode(e.target.value);
   };
   
+  // Handle refresh button click
+  const handleRefresh = () => {
+    setRefreshing(true);
+    // In a real implementation, you might want to fetch fresh data from the server
+    // For now, we'll just simulate a refresh with a timeout
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
+  
   return (
-    <Paper sx={{ p: 2, mb: 3, height: '100%' }}>
+    <Paper elevation={3} sx={{ p: 2, mb: 3, height: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6">Budget vs. Actual</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="h6" color="primary">Budget vs. Actual</Typography>
+          <Tooltip title="Refresh data">
+            <IconButton
+              size="small"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              sx={{ ml: 1 }}
+            >
+              {refreshing ? <CircularProgress size={16} /> : <RefreshIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        </Box>
         <Tooltip title="View details information about your budget vs actual spending">
           <IconButton size="small">
             <InfoOutlinedIcon fontSize="small" />
@@ -231,7 +274,7 @@ const BudgetVsActualChart = () => {
       </Box>
       
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={6}>
+        <Grid item xs={12} sm={6}>
           <FormControl size="small" fullWidth>
             <InputLabel id="timeframe-label">Timeframe</InputLabel>
             <Select
@@ -239,6 +282,7 @@ const BudgetVsActualChart = () => {
               value={timeframe}
               label="Timeframe"
               onChange={handleTimeframeChange}
+              disabled={loading || refreshing}
             >
               <MenuItem value="current">Current Month</MenuItem>
               <MenuItem value="1month">Last Month</MenuItem>
@@ -247,7 +291,7 @@ const BudgetVsActualChart = () => {
           </FormControl>
         </Grid>
         
-        <Grid item xs={6}>
+        <Grid item xs={12} sm={6}>
           <FormControl size="small" fullWidth>
             <InputLabel id="view-mode-label">View</InputLabel>
             <Select
@@ -255,6 +299,7 @@ const BudgetVsActualChart = () => {
               value={viewMode}
               label="View"
               onChange={handleViewModeChange}
+              disabled={loading || refreshing}
             >
               <MenuItem value="byCategory">By Category</MenuItem>
               <MenuItem value="overall">Overall</MenuItem>
@@ -263,11 +308,39 @@ const BudgetVsActualChart = () => {
         </Grid>
       </Grid>
       
-      {chartData.length === 0 ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
-          <Typography variant="body1" color="text.secondary">
+      {loading ? (
+        <Box sx={{ height: 300, mt: 1 }}>
+          <Skeleton variant="rectangular" height={250} animation="wave" />
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Skeleton variant="text" width="60%" />
+          </Box>
+        </Box>
+      ) : error ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+          <Button
+            variant="outlined"
+            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? 'Refreshing...' : 'Try Again'}
+          </Button>
+        </Box>
+      ) : chartData.length === 0 ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+          <Typography variant="body1" color="text.secondary" gutterBottom>
             No budget data available for this period
           </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={handleRefresh}
+            size="small"
+            sx={{ mt: 1 }}
+          >
+            Refresh
+          </Button>
         </Box>
       ) : (
         <Box sx={{ height: 300, mt: 1 }}>
@@ -320,12 +393,32 @@ const BudgetVsActualChart = () => {
         </Box>
       )}
       
+      {/* Loading overlay for refresh */}
+      {refreshing && !loading && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            zIndex: 1
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      )}
+      
       {/* Chart summary info */}
-      {chartData.length > 0 && (
+      {chartData.length > 0 && !loading && (
         <Box sx={{ mt: 2 }}>
           <Divider sx={{ mb: 2 }} />
           <Grid container spacing={2}>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
                 Total Budget
               </Typography>
@@ -333,7 +426,7 @@ const BudgetVsActualChart = () => {
                 {formatCurrency(chartData.reduce((sum, item) => sum + item.budget, 0))}
               </Typography>
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
                 Total Spent
               </Typography>
@@ -341,11 +434,11 @@ const BudgetVsActualChart = () => {
                 {formatCurrency(chartData.reduce((sum, item) => sum + item.actual, 0))}
               </Typography>
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" color="text.secondary">
                 Remaining
               </Typography>
-              <Typography 
+              <Typography
                 variant="subtitle1"
                 color={chartData.reduce((sum, item) => sum + item.difference, 0) < 0 ? 'error.main' : 'success.main'}
               >

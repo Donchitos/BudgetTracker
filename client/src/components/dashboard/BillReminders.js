@@ -36,6 +36,7 @@ import LaunchIcon from '@mui/icons-material/Launch';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import WarningIcon from '@mui/icons-material/Warning';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import AddIcon from '@mui/icons-material/Add';
 import { getUpcomingBills, markBillAsPaid } from '../../redux/actions/billActions';
 
 const BillReminders = () => {
@@ -44,6 +45,7 @@ const BillReminders = () => {
   
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentData, setPaymentData] = useState({
     paymentAmount: '',
     createTransaction: true,
@@ -129,9 +131,18 @@ const BillReminders = () => {
   // Handle payment form input changes
   const handlePaymentDataChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
+    // For amount field, validate it's a positive number
+    if (name === 'paymentAmount' && value !== '') {
+      if (isNaN(parseFloat(value)) || parseFloat(value) <= 0) {
+        return; // Don't update if invalid
+      }
+    }
+    
     setPaymentData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: newValue
     }));
   };
   
@@ -139,12 +150,22 @@ const BillReminders = () => {
   const handlePayBill = async () => {
     if (!selectedBill) return;
     
+    // Validate payment amount
+    if (!paymentData.paymentAmount || parseFloat(paymentData.paymentAmount) <= 0) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
       await dispatch(markBillAsPaid(selectedBill._id, paymentData));
       setPayDialogOpen(false);
       dispatch(getUpcomingBills(10)); // Refresh the reminders
     } catch (err) {
       console.error('Error paying bill:', err);
+      // Show error message to user
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -162,7 +183,7 @@ const BillReminders = () => {
     return (
       <Card>
         <CardContent sx={{ textAlign: 'center', py: 3 }}>
-          <CircularProgress size={30} />
+          <CircularProgress size={30} color="primary" />
           <Typography variant="body1" sx={{ mt: 2 }}>
             Loading bill reminders...
           </Typography>
@@ -183,14 +204,26 @@ const BillReminders = () => {
             <Typography variant="body1" color="text.secondary">
               No upcoming bills due soon
             </Typography>
-            <Button
-              component={RouterLink}
-              to="/bills"
-              startIcon={<PaymentIcon />}
-              sx={{ mt: 1 }}
-            >
-              Manage Bills
-            </Button>
+            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
+              <Button
+                component={RouterLink}
+                to="/bills"
+                startIcon={<PaymentIcon />}
+                variant="contained"
+                size="small"
+              >
+                Manage Bills
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/bills/add"
+                startIcon={<AddIcon />}
+                variant="outlined"
+                size="small"
+              >
+                Add New Bill
+              </Button>
+            </Box>
           </Box>
         </CardContent>
       </Card>
@@ -345,12 +378,22 @@ const BillReminders = () => {
         )}
       </CardContent>
       
-      <CardActions sx={{ justifyContent: 'flex-end' }}>
-        <Button 
-          component={RouterLink} 
-          to="/bills" 
+      <CardActions sx={{ justifyContent: 'space-between' }}>
+        <Button
+          component={RouterLink}
+          to="/bills/add"
+          startIcon={<AddIcon />}
+          size="small"
+          color="primary"
+        >
+          Add Bill
+        </Button>
+        <Button
+          component={RouterLink}
+          to="/bills"
           endIcon={<ArrowForwardIcon />}
           size="small"
+          variant="outlined"
         >
           View All Bills
         </Button>
@@ -416,16 +459,21 @@ const BillReminders = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPayDialogOpen(false)} color="inherit">
+          <Button
+            onClick={() => setPayDialogOpen(false)}
+            color="inherit"
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button 
-            onClick={handlePayBill} 
-            color="primary" 
+          <Button
+            onClick={handlePayBill}
+            color="primary"
             variant="contained"
-            startIcon={<CreditCardIcon />}
+            startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <CreditCardIcon />}
+            disabled={!paymentData.paymentAmount || isSubmitting}
           >
-            Mark as Paid
+            {isSubmitting ? 'Processing...' : 'Mark as Paid'}
           </Button>
         </DialogActions>
       </Dialog>

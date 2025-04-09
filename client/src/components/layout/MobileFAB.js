@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Box, SpeedDial, SpeedDialAction, SpeedDialIcon } from '@mui/material';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { 
+  Box, 
+  SpeedDial, 
+  SpeedDialAction, 
+  SpeedDialIcon, 
+  Backdrop, 
+  useTheme, 
+  Zoom,
+  useMediaQuery,
+  Tooltip
+} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import SavingsIcon from '@mui/icons-material/Savings';
@@ -16,8 +26,12 @@ import QuickAddTransactionDialog from '../transactions/QuickAddTransactionDialog
  */
 const MobileFAB = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [open, setOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
   
   // Hide FAB on specific routes where it might interfere with other UI elements
   const hideFAB = [
@@ -29,8 +43,14 @@ const MobileFAB = () => {
     return null;
   }
   
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleOpen = () => {
+    setOpen(true);
+    setTransitioning(false);
+  };
+  
+  const handleClose = () => {
+    setOpen(false);
+  };
   
   const handleQuickAddOpen = () => {
     setQuickAddOpen(true);
@@ -45,63 +65,93 @@ const MobileFAB = () => {
     { 
       icon: <ReceiptIcon />, 
       name: 'Add Transaction', 
+      color: theme.palette.success.main,
       onClick: handleQuickAddOpen
     },
     { 
       icon: <PaymentsIcon />, 
-      name: 'Add Bill', 
+      name: 'Add Bill',
+      color: theme.palette.info.main,
       onClick: () => {
-        // Navigate to bills page with form open
-        window.location.href = '/bills?new=true';
+        setTransitioning(true);
+        // Use React Router navigation instead of window.location for a smoother experience
+        setTimeout(() => navigate('/bills?new=true'), 300);
       }
     },
     { 
       icon: <SavingsIcon />, 
-      name: 'Add Savings Goal', 
+      name: 'Add Savings Goal',
+      color: theme.palette.secondary.main,
       onClick: () => {
-        // Navigate to savings page with form open
-        window.location.href = '/savings?new=true';
+        setTransitioning(true);
+        setTimeout(() => navigate('/savings?new=true'), 300);
       }
     },
     { 
       icon: <RequestQuoteIcon />, 
-      name: 'Add Budget', 
+      name: 'Add Budget',
+      color: theme.palette.warning.main, 
       onClick: () => {
-        // Navigate to budget page with form open
-        window.location.href = '/budget?new=true';
+        setTransitioning(true);
+        setTimeout(() => navigate('/budget?new=true'), 300);
       }
     }
   ];
 
   return (
     <>
-      <Box sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 1000 }}>
-        <SpeedDial
-          ariaLabel="Quick actions"
-          icon={<SpeedDialIcon openIcon={<AddIcon />} />}
-          onClose={handleClose}
-          onOpen={handleOpen}
-          open={open}
-          direction="up"
-          FabProps={{
-            sx: {
-              bgcolor: 'primary.main',
-              '&:hover': {
-                bgcolor: 'primary.dark',
+      <Backdrop open={open} sx={{ zIndex: 999, backgroundColor: 'rgba(0, 0, 0, 0.4)' }} />
+      
+      <Box sx={{ 
+        position: 'fixed', 
+        bottom: { xs: 16, sm: 24 }, 
+        right: { xs: 16, sm: 24 }, 
+        zIndex: 1000,
+        transition: 'all 0.3s ease-in-out',
+        transform: transitioning ? 'scale(0)' : 'scale(1)'
+      }}>
+        <Zoom in={!transitioning}>
+          <SpeedDial
+            ariaLabel="Quick actions"
+            icon={<SpeedDialIcon openIcon={<AddIcon />} />}
+            onClose={handleClose}
+            onOpen={handleOpen}
+            open={open}
+            direction="up"
+            FabProps={{
+              sx: {
+                bgcolor: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'primary.dark',
+                },
+                boxShadow: 3,
+                height: { xs: 56, sm: 64 },
+                width: { xs: 56, sm: 64 }
               }
-            }
-          }}
-        >
-          {actions.map((action) => (
-            <SpeedDialAction
-              key={action.name}
-              icon={action.icon}
-              tooltipTitle={action.name}
-              tooltipOpen
-              onClick={action.onClick}
-            />
-          ))}
-        </SpeedDial>
+            }}
+          >
+            {actions.map((action) => (
+              <SpeedDialAction
+                key={action.name}
+                icon={action.icon}
+                tooltipTitle={action.name}
+                tooltipOpen={isMobile}
+                onClick={action.onClick}
+                FabProps={{
+                  sx: {
+                    bgcolor: open ? action.color : 'background.paper',
+                    color: open ? 'white' : 'text.primary',
+                    '&:hover': {
+                      bgcolor: action.color,
+                      color: 'white'
+                    },
+                    transition: 'all 0.2s ease-in-out'
+                  }
+                }}
+              />
+            ))}
+          </SpeedDial>
+        </Zoom>
       </Box>
       
       {/* Quick Add Transaction Dialog */}

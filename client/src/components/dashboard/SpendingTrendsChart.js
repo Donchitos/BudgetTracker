@@ -1,17 +1,23 @@
+import IconButton from '@mui/material/IconButton';
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { 
+import {
   Box, 
   Paper, 
   Typography, 
-  CircularProgress, 
-  FormControl, 
-  InputLabel, 
-  Select, 
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
   MenuItem,
   ToggleButtonGroup,
-  ToggleButton
+  ToggleButton,
+  Button,
+  Skeleton,
+  Fade,
+  Tooltip as MuiTooltip
 } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { 
   LineChart, 
   Line, 
@@ -27,14 +33,15 @@ import { getSpendingTrends } from '../../redux/actions/dashboardActions';
 const SpendingTrendsChart = () => {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState([]);
   const [period, setPeriod] = useState('6months');
   const [view, setView] = useState('both'); // 'income', 'expenses', or 'both'
   
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    const fetchData = async (isRefresh = false) => {
+      isRefresh ? setRefreshing(true) : setLoading(true);
       try {
         let params = {};
         
@@ -69,9 +76,12 @@ const SpendingTrendsChart = () => {
         }
         
         setLoading(false);
+        setRefreshing(false);
+        setError(null);
       } catch (err) {
         setError(err.message || 'Failed to load spending trends');
         setLoading(false);
+        setRefreshing(false);
       }
     };
     
@@ -125,8 +135,14 @@ const SpendingTrendsChart = () => {
     return null;
   };
   
+  // Handle refresh button click
+  const handleRefresh = () => {
+    fetchData(true);
+  };
+
   return (
     <Paper
+      elevation={3}
       sx={{
         p: 2,
         display: 'flex',
@@ -135,10 +151,24 @@ const SpendingTrendsChart = () => {
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography component="h2" variant="h6" color="primary" gutterBottom>
-          Spending Trends
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography component="h2" variant="h6" color="primary" gutterBottom sx={{ mr: 1 }}>
+            Spending Trends
+          </Typography>
+          <MuiTooltip title="Refresh data">
+            <span>
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={refreshing || loading}
+                color="primary"
+              >
+                {refreshing ? <CircularProgress size={20} /> : <RefreshIcon fontSize="small" />}
+              </IconButton>
+            </span>
+          </MuiTooltip>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
           <ToggleButtonGroup
             size="small"
             value={view}
@@ -157,7 +187,7 @@ const SpendingTrendsChart = () => {
             </ToggleButton>
           </ToggleButtonGroup>
           
-          <FormControl size="small" sx={{ width: 140 }}>
+          <FormControl size="small" sx={{ width: { xs: 110, sm: 140 } }}>
             <InputLabel id="period-select-label">Period</InputLabel>
             <Select
               labelId="period-select-label"
@@ -175,16 +205,35 @@ const SpendingTrendsChart = () => {
       </Box>
       
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <CircularProgress />
+        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+          <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
+          <Skeleton variant="text" width="60%" sx={{ mx: 'auto' }} />
+          <Skeleton variant="text" width="40%" sx={{ mx: 'auto' }} />
         </Box>
       ) : error ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <Typography color="error">{error}</Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <Typography color="error" gutterBottom>{error}</Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleRefresh}
+            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
+            disabled={refreshing}
+          >
+            {refreshing ? 'Refreshing...' : 'Try Again'}
+          </Button>
         </Box>
       ) : data.length === 0 ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <Typography color="textSecondary">No spending data available</Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <Typography color="textSecondary" gutterBottom>No spending data available</Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleRefresh}
+            startIcon={<RefreshIcon />}
+          >
+            Refresh
+          </Button>
         </Box>
       ) : (
         <ResponsiveContainer width="100%" height="100%">
@@ -193,8 +242,8 @@ const SpendingTrendsChart = () => {
             margin={{
               top: 5,
               right: 30,
-              left: 20,
-              bottom: 5,
+              left: 10,
+              bottom: 20,
             }}
           >
             <CartesianGrid strokeDasharray="3 3" />

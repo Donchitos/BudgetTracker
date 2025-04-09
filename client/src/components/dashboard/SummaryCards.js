@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { 
-  Box, 
-  Grid, 
-  Paper, 
-  Typography, 
+import {
+  Box,
+  Grid,
+  Paper,
+  Typography,
   CircularProgress,
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Button,
+  Fade
 } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
@@ -82,8 +84,28 @@ const SummaryCards = () => {
   
   if (error) {
     return (
-      <Box sx={{ mb: 3 }}>
-        <Typography color="error">{error}</Typography>
+      <Box sx={{ mb: 3, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+        <Typography color="error" variant="body2">
+          <strong>Error loading financial summary:</strong> {error}
+        </Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          color="error"
+          onClick={() => {
+            setLoading(true);
+            setError(null);
+            dispatch(getDashboardSummary({
+              period: period
+            })).catch(err => {
+              setError(err.message || 'Failed to load summary data');
+              setLoading(false);
+            });
+          }}
+          sx={{ mt: 1 }}
+        >
+          Retry
+        </Button>
       </Box>
     );
   }
@@ -94,7 +116,7 @@ const SummaryCards = () => {
         <Typography variant="h5">
           Financial Summary
         </Typography>
-        <FormControl size="small" sx={{ width: 150 }}>
+        <FormControl size="small" sx={{ width: { xs: 120, sm: 150 } }}>
           <InputLabel id="period-select-label">Period</InputLabel>
           <Select
             labelId="period-select-label"
@@ -112,9 +134,10 @@ const SummaryCards = () => {
       
       <Grid container spacing={3}>
         {/* Income Card */}
-        <Grid item xs={12} md={4}>
-          <Paper 
-            sx={{ 
+        <Grid item xs={12} sm={4}>
+          <Paper
+            elevation={3}
+            sx={{
               p: 2, 
               display: 'flex', 
               flexDirection: 'column', 
@@ -125,7 +148,7 @@ const SummaryCards = () => {
           >
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                <CircularProgress />
+                <CircularProgress size={30} />
               </Box>
             ) : (
               <>
@@ -152,9 +175,10 @@ const SummaryCards = () => {
         </Grid>
         
         {/* Expenses Card */}
-        <Grid item xs={12} md={4}>
-          <Paper 
-            sx={{ 
+        <Grid item xs={12} sm={4}>
+          <Paper
+            elevation={3}
+            sx={{
               p: 2, 
               display: 'flex', 
               flexDirection: 'column', 
@@ -165,7 +189,7 @@ const SummaryCards = () => {
           >
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                <CircularProgress />
+                <CircularProgress size={30} />
               </Box>
             ) : (
               <>
@@ -192,9 +216,10 @@ const SummaryCards = () => {
         </Grid>
         
         {/* Balance Card */}
-        <Grid item xs={12} md={4}>
-          <Paper 
-            sx={{ 
+        <Grid item xs={12} sm={4}>
+          <Paper
+            elevation={3}
+            sx={{
               p: 2, 
               display: 'flex', 
               flexDirection: 'column', 
@@ -205,7 +230,7 @@ const SummaryCards = () => {
           >
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                <CircularProgress />
+                <CircularProgress size={30} />
               </Box>
             ) : (
               <>
