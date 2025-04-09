@@ -35,9 +35,12 @@ const CategoryBudgetAlerts = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  // Get categories and transactions from Redux store
-  const { categories } = useSelector(state => state.category);
-  const { transactions } = useSelector(state => state.transaction);
+  // Get categories and transactions from Redux store with proper null checks
+  const categoryState = useSelector(state => state.category);
+  const transactionState = useSelector(state => state.transaction);
+
+  const categories = categoryState?.categories || [];
+  const transactions = transactionState?.transactions || [];
   
   // Local state
   const [expanded, setExpanded] = useState(true);

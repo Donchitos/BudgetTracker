@@ -48,6 +48,41 @@ export const useResponsiveValue = (mobile, tablet, desktop) => {
   }
 };
 
+/**
+ * Custom hook to get current breakpoint information
+ * @returns {Object} Object containing breakpoint information
+ */
+export const useResponsiveBreakpoints = () => {
+  const theme = useTheme();
+  const isXsDown = useMediaQuery(theme.breakpoints.down('xs'));
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMdDown = useMediaQuery(theme.breakpoints.down('md'));
+  const isLgDown = useMediaQuery(theme.breakpoints.down('lg'));
+  const isXlDown = useMediaQuery(theme.breakpoints.down('xl'));
+  
+  const isXsUp = useMediaQuery(theme.breakpoints.up('xs'));
+  const isSmUp = useMediaQuery(theme.breakpoints.up('sm'));
+  const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
+  const isLgUp = useMediaQuery(theme.breakpoints.up('lg'));
+  const isXlUp = useMediaQuery(theme.breakpoints.up('xl'));
+  
+  // Determine current breakpoint
+  let currentBreakpoint = 'xs';
+  if (isXlUp) currentBreakpoint = 'xl';
+  else if (isLgUp) currentBreakpoint = 'lg';
+  else if (isMdUp) currentBreakpoint = 'md';
+  else if (isSmUp) currentBreakpoint = 'sm';
+  
+  return {
+    isXsDown, isSmDown, isMdDown, isLgDown, isXlDown,
+    isXsUp, isSmUp, isMdUp, isLgUp, isXlUp,
+    currentBreakpoint,
+    isMobile: isSmDown,
+    isTablet: !isSmDown && isMdDown,
+    isDesktop: isMdUp
+  };
+};
+
 // Non-hook version that takes screen size as input
 export const getResponsiveValue = (screenSize, mobile, tablet, desktop) => {
   if (screenSize === 'mobile') {

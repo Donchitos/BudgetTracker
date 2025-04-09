@@ -29,6 +29,9 @@ app.get('/api', (req, res) => {
 
 // Demo route to simulate authentication
 app.post('/api/auth/login', (req, res) => {
+  // For demo mode, accept any credentials
+  console.log('Login attempt with:', req.body.email);
+  
   res.json({
     success: true,
     token: 'demo-token-12345',
@@ -41,6 +44,9 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.post('/api/auth/register', (req, res) => {
+  // For demo mode, accept any registration
+  console.log('Registration attempt with:', req.body.email);
+  
   res.json({
     success: true,
     token: 'demo-token-12345',
@@ -137,8 +143,8 @@ app.get('/api/dashboard/expense-breakdown', (req, res) => {
   });
 });
 
-// Routes
-app.use('/api/auth', require('./routes/auth.routes'));
+// Routes - COMMENTED OUT THE DIRECT AUTH ROUTES TO PREVENT CONFLICTS WITH DEMO ROUTES
+// app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/categories', require('./routes/category.routes'));
 app.use('/api/transactions', require('./routes/transaction.routes'));
 app.use('/api/bills', require('./routes/bill.routes'));

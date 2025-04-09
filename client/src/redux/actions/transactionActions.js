@@ -116,3 +116,65 @@ export const getTransactionStats = async (filters = {}) => {
     throw new Error(err.response?.data?.message || 'Failed to fetch transaction statistics');
   }
 };
+
+/**
+ * Update multiple transactions in bulk
+ * @param {Array} transactions - Array of transaction objects with ids and updated data
+ */
+export const updateTransactions = (transactions) => async (dispatch) => {
+  try {
+    const updatePromises = transactions.map(transaction => 
+      transactionService.updateTransaction(transaction.id, transaction.data)
+    );
+    
+    const results = await Promise.all(updatePromises);
+    
+    // Update each transaction in the store
+    results.forEach(res => {
+      dispatch({
+        type: UPDATE_TRANSACTION,
+        payload: res.data
+      });
+    });
+    
+    return results.map(res => res.data);
+  } catch (err) {
+    dispatch({
+      type: TRANSACTION_ERROR,
+      payload: err.response?.data?.message || 'Failed to update transactions in bulk'
+    });
+    
+    throw new Error(err.response?.data?.message || 'Failed to update transactions in bulk');
+  }
+};
+
+/**
+ * Delete multiple transactions in bulk
+ * @param {Array} ids - Array of transaction IDs to delete
+ */
+export const deleteTransactions = (ids) => async (dispatch) => {
+  try {
+    const deletePromises = ids.map(id => 
+      transactionService.deleteTransaction(id)
+    );
+    
+    await Promise.all(deletePromises);
+    
+    // Delete each transaction from the store
+    ids.forEach(id => {
+      dispatch({
+        type: DELETE_TRANSACTION,
+        payload: id
+      });
+    });
+    
+    return true;
+  } catch (err) {
+    dispatch({
+      type: TRANSACTION_ERROR,
+      payload: err.response?.data?.message || 'Failed to delete transactions in bulk'
+    });
+    
+    throw new Error(err.response?.data?.message || 'Failed to delete transactions in bulk');
+  }
+};
