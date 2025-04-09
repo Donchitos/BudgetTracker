@@ -40,7 +40,9 @@ import { addTransaction } from '../../redux/actions/transactionActions';
  */
 const QuickAddTransactionDialog = ({ open, onClose }) => {
   const dispatch = useDispatch();
-  const { categories } = useSelector(state => state.categories);
+  // Fixed selector and added fallback for demo mode
+  const categoryState = useSelector(state => state.category);
+  const categories = categoryState?.categories || [];
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   

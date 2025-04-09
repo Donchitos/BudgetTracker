@@ -41,7 +41,15 @@ import { getUpcomingBills, markBillAsPaid } from '../../redux/actions/billAction
 
 const BillReminders = () => {
   const dispatch = useDispatch();
-  const { reminders, upcomingBills, overdueBills, loading } = useSelector(state => state.bills);
+  
+  // Get bill data with fallback for demo mode
+  const billState = useSelector(state => state.bill);
+  const {
+    reminders = [],
+    upcomingBills = [],
+    overdueBills = [],
+    loading = false
+  } = billState || {};
   
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);

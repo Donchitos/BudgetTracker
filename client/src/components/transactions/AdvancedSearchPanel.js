@@ -42,8 +42,9 @@ const AdvancedSearchPanel = ({ onSearch, initialFilters = {} }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
   
-  // Get categories, tags, and saved searches from Redux store
-  const { categories } = useSelector(state => state.category);
+  // Get categories, tags, and saved searches from Redux store with fallback
+  const categoryState = useSelector(state => state.category);
+  const categories = categoryState?.categories || [];
   
   // State for search filters
   const [filters, setFilters] = useState({

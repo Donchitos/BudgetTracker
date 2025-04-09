@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { demoLogin } from '../../redux/actions/authActions';
+import { getAuthUrl } from '../../utils/apiConfig';
 import {
   Avatar,
   Button,
@@ -16,8 +18,6 @@ import {
   Alert
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-
-import { login } from '../../redux/actions/authActions';
 
 const Login = () => {
   const dispatch = useDispatch();
@@ -59,10 +59,30 @@ const Login = () => {
     }
     
     try {
-      await dispatch(login(email, password));
-      navigate('/');
+      console.log('Attempting to login with:', { email, password: '******' });
+      
+      // Direct fetch to the server with dynamic URL handling for GitHub Codespaces
+      const response = await fetch(getAuthUrl('login'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const data = await response.json();
+      console.log('Login response:', data);
+      
+      if (data.success) {
+        // Store token manually
+        localStorage.setItem('token', data.token);
+        navigate('/');
+      } else {
+        setError(data.message || 'Login failed');
+      }
     } catch (err) {
-      setError(err.message || 'Login failed');
+      console.error('Login error:', err);
+      setError('Network error: Could not connect to the server');
     }
   };
   
@@ -140,6 +160,24 @@ const Login = () => {
               <Link component={RouterLink} to="/forgot-password" variant="body2">
                 Forgot password?
               </Link>
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Having trouble connecting?
+                </Typography>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => {
+                    // Use the demoLogin action from Redux
+                    dispatch(demoLogin());
+                    
+                    // Navigate to dashboard
+                    navigate('/');
+                  }}
+                >
+                  Login as Demo User
+                </Button>
+              </div>
             </Grid>
             <Grid item>
               <Link component={RouterLink} to="/register" variant="body2">

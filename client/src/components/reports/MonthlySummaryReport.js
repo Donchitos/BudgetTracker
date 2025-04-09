@@ -39,8 +39,11 @@ import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 
 const MonthlySummaryReport = () => {
-  const { transactions, loading } = useSelector(state => state.transactions);
-  const { categories } = useSelector(state => state.categories);
+  const transactionState = useSelector(state => state.transaction);
+  const { transactions = [], loading = false } = transactionState || {};
+  
+  const categoryState = useSelector(state => state.category);
+  const { categories = [] } = categoryState || {};
   
   // State for current month
   const [currentMonth, setCurrentMonth] = useState(new Date());

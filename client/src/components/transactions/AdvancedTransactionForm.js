@@ -40,7 +40,7 @@ import { format } from 'date-fns';
  */
 const AdvancedTransactionForm = ({ open, onClose, initialData = null }) => {
   const dispatch = useDispatch();
-  const { categories } = useSelector(state => state.categories);
+  const { categories } = useSelector(state => state.category);
   
   // Form state
   const [transaction, setTransaction] = useState({

@@ -50,7 +50,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 /**
  * Component that allows users to customize their dashboard layout
  */
-const DashboardCustomizer = ({ onLayoutChange }) => {
+const DashboardCustomizer = ({ onLayoutChange, widgets, onToggleWidget, onSave }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
   
@@ -166,7 +166,7 @@ const DashboardCustomizer = ({ onLayoutChange }) => {
   
   // Notify parent component of layout changes
   useEffect(() => {
-    if (dashboardLayout.length > 0) {
+    if (dashboardLayout.length > 0 && typeof onLayoutChange === 'function') {
       // Get only visible components
       const visibleComponents = dashboardLayout
         .filter(item => item.visible)

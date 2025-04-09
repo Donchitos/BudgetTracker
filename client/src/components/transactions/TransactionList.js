@@ -43,8 +43,8 @@ import BulkEditDialog from './BulkEditDialog';
  */
 const TransactionList = ({ filters, onFilterChange }) => {
   const dispatch = useDispatch();
-  const { transactions, loading } = useSelector(state => state.transactions);
-  const { categories } = useSelector(state => state.categories);
+  const { transactions, loading } = useSelector(state => state.transaction);
+  const { categories } = useSelector(state => state.category);
   
   // Local state
   const [page, setPage] = useState(0);

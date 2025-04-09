@@ -79,7 +79,8 @@ function TabPanel(props) {
 
 const Bills = () => {
   const dispatch = useDispatch();
-  const { bills, loading, error, stats } = useSelector(state => state.bills);
+  const billState = useSelector(state => state.bill);
+  const { bills = [], loading = false, error = null, stats = null } = billState || {};
   
   // State for bill form dialog
   const [formOpen, setFormOpen] = useState(false);

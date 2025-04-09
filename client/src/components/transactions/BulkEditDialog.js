@@ -45,8 +45,9 @@ const BulkEditDialog = ({ open, onClose, selectedTransactions = [] }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
   
-  // Get categories from Redux store
-  const { categories, loading: categoriesLoading } = useSelector(state => state.category);
+  // Get categories from Redux store with fallback for demo mode
+  const categoryState = useSelector(state => state.category);
+  const { categories = [], loading: categoriesLoading = false } = categoryState || {};
   
   // Local state for form values
   const [editFields, setEditFields] = useState({

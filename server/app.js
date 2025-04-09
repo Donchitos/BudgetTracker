@@ -57,8 +57,16 @@ app.post('/api/auth/register', (req, res) => {
     }
   });
 });
-
 app.get('/api/auth/me', (req, res) => {
+  // In demo mode, always authenticate with any token
+  const authHeader = req.headers.authorization;
+  
+  // If no token is provided at all, return 401
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'No token provided' });
+  }
+  
+  // Any token is valid in demo mode
   res.json({
     success: true,
     data: {

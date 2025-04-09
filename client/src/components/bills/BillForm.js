@@ -28,7 +28,8 @@ import { addDays, format } from 'date-fns';
 import LaunchIcon from '@mui/icons-material/Launch';
 
 const BillForm = ({ open, onClose, onSubmit, bill = null }) => {
-  const { categories } = useSelector(state => state.categories);
+  const categoryState = useSelector(state => state.category);
+  const { categories = [] } = categoryState || {};
   
   // State for form fields
   const [formValues, setFormValues] = useState({

@@ -22,16 +22,19 @@ const Dashboard = () => {
   const dispatch = useDispatch();
   const isMobile = useIsMobile();
   
+  // Track Redux store initialization for safe rendering
+  const [isStoreReady, setIsStoreReady] = useState(false);
+  
   // Widget configuration with visibility settings
   const [widgets, setWidgets] = useState([
-    { id: 'summary-cards', name: 'Summary Cards', visible: true },
-    { id: 'category-alerts', name: 'Category Budget Alerts', visible: true },
-    { id: 'expense-chart', name: 'Expense Breakdown', visible: true },
-    { id: 'recent-transactions', name: 'Recent Transactions', visible: true },
-    { id: 'budget-vs-actual', name: 'Budget vs. Actual', visible: true },
-    { id: 'spending-trends', name: 'Spending Trends', visible: true },
-    { id: 'savings-goals', name: 'Savings Goals', visible: true },
-    { id: 'bill-reminders', name: 'Bill Reminders', visible: true }
+    { id: 'summary-cards', name: 'Summary Cards', visible: true, safeToRender: true },
+    { id: 'category-alerts', name: 'Category Budget Alerts', visible: true, safeToRender: false },
+    { id: 'expense-chart', name: 'Expense Breakdown', visible: true, safeToRender: false },
+    { id: 'recent-transactions', name: 'Recent Transactions', visible: true, safeToRender: false },
+    { id: 'budget-vs-actual', name: 'Budget vs. Actual', visible: true, safeToRender: false },
+    { id: 'spending-trends', name: 'Spending Trends', visible: true, safeToRender: false },
+    { id: 'savings-goals', name: 'Savings Goals', visible: true, safeToRender: false },
+    { id: 'bill-reminders', name: 'Bill Reminders', visible: true, safeToRender: false }
   ]);
   
   // Load data and preferences
@@ -65,10 +68,23 @@ const Dashboard = () => {
     };
   }, [dispatch]);
   
-  // Helper to check widget visibility
+  // Mark all widgets as safe to render for demo mode
+  useEffect(() => {
+    // In demo mode, we want to avoid errors from missing Redux data
+    // This will make all widgets considered safe to render
+    setWidgets(prevWidgets =>
+      prevWidgets.map(widget => ({
+        ...widget,
+        safeToRender: true  // Make all widgets safe to render
+      }))
+    );
+    setIsStoreReady(true);
+  }, []);
+  
+  // Helper to check if a widget should be rendered
   const isWidgetVisible = (id) => {
     const widget = widgets.find(w => w.id === id);
-    return widget && widget.visible;
+    return widget && widget.visible && widget.safeToRender;
   };
   
   // Save preferences to localStorage

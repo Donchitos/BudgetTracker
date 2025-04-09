@@ -64,7 +64,8 @@ const AdvancedCategoryManager = () => {
   const dispatch = useDispatch();
   
   // Get categories from Redux store
-  const { categories, loading, error } = useSelector(state => state.category);
+  const categoryState = useSelector(state => state.category);
+  const { categories = [], loading = false, error = null } = categoryState || {};
   
   // Local state
   const [hierarchicalCategories, setHierarchicalCategories] = useState([]);

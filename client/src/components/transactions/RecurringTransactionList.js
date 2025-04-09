@@ -62,8 +62,11 @@ const RecurringTransactionList = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   
-  const { recurringTransactions, loading } = useSelector(state => state.recurringTransactions);
-  const { categories } = useSelector(state => state.categories);
+  const recurringTransactionState = useSelector(state => state.recurringTransaction);
+  const { recurringTransactions = [], loading = false } = recurringTransactionState || {};
+  
+  const categoryState = useSelector(state => state.category);
+  const { categories = [] } = categoryState || {};
   
   // States for UI controls
   const [openForm, setOpenForm] = useState(false);

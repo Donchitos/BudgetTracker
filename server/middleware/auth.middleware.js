@@ -8,6 +8,31 @@ const User = require('../models/User.model');
  * @param {Function} next - Express next middleware function
  */
 exports.protect = async (req, res, next) => {
+  // DEMO MODE CHECK - Accept any token in demo mode
+  if (process.env.NODE_ENV !== 'production') {
+    let token;
+
+    // Check if token exists in headers
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith('Bearer')
+    ) {
+      // Get token from header (Bearer token)
+      token = req.headers.authorization.split(' ')[1];
+      
+      // For demo mode, accept any token that exists
+      if (token) {
+        req.user = {
+          _id: '1234567890',
+          name: 'Demo User',
+          email: 'demo@example.com'
+        };
+        return next();
+      }
+    }
+  }
+
+  // STANDARD AUTHENTICATION for production
   let token;
 
   // Check if token exists in headers

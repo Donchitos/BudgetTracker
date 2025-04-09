@@ -13,11 +13,18 @@ const authService = {
    * @returns {Promise} - Promise with user data and token
    */
   register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+    console.log('authService - Sending registration request to:', '/auth/register');
+    try {
+      const response = await api.post('/auth/register', userData);
+      console.log('authService - Registration response:', response.data);
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
+      return response.data;
+    } catch (error) {
+      console.error('authService - Registration error:', error);
+      throw error;
     }
-    return response.data;
   },
 
   /**

@@ -108,9 +108,14 @@ const AdvancedReportGenerator = () => {
   const dispatch = useDispatch();
   
   // Get data from Redux store
-  const { transactions, loading: transactionsLoading } = useSelector(state => state.transaction);
-  const { categories } = useSelector(state => state.category);
-  const { accounts } = useSelector(state => state.account || { accounts: [] });
+  const transactionState = useSelector(state => state.transaction);
+  const { transactions = [], loading: transactionsLoading = false } = transactionState || {};
+  
+  const categoryState = useSelector(state => state.category);
+  const { categories = [] } = categoryState || {};
+  
+  const accountState = useSelector(state => state.account);
+  const { accounts = [] } = accountState || {};
   
   // Local state
   const [activeTab, setActiveTab] = useState(0);

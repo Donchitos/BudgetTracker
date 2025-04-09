@@ -24,7 +24,9 @@ import {
   useTheme,
   FormHelperText,
   Tooltip,
-  Chip
+  Chip,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
@@ -54,7 +56,8 @@ const SavingsGoalForm = ({
   const dispatch = useDispatch();
   
   // Get categories from Redux store
-  const { categories } = useSelector(state => state.category);
+  const categoryState = useSelector(state => state.category);
+  const { categories = [] } = categoryState || {};
   
   // State for form
   const [goal, setGoal] = useState({

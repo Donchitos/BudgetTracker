@@ -72,8 +72,11 @@ const SpendingPatternAnalytics = () => {
   const dispatch = useDispatch();
   
   // Get data from Redux store
-  const { transactions, loading: transactionsLoading } = useSelector(state => state.transaction);
-  const { categories } = useSelector(state => state.category);
+  const transactionState = useSelector(state => state.transaction);
+  const { transactions = [], loading: transactionsLoading = false } = transactionState || {};
+  
+  const categoryState = useSelector(state => state.category);
+  const { categories = [] } = categoryState || {};
   
   // State for analytics
   const [period, setPeriod] = useState('last6Months');

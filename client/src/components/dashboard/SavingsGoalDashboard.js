@@ -24,7 +24,8 @@ import { getSavingsGoals, getSavingsStats } from '../../redux/actions/savingsGoa
 
 const SavingsGoalDashboard = () => {
   const dispatch = useDispatch();
-  const { savingsGoals, stats, loading } = useSelector(state => state.savings);
+  const savingsState = useSelector(state => state.savings);
+  const { savingsGoals = [], stats = null, loading = false } = savingsState || {};
   
   useEffect(() => {
     dispatch(getSavingsGoals());

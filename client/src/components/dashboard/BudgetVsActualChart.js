@@ -32,8 +32,14 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 const BudgetVsActualChart = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const { categories } = useSelector(state => state.categories);
-  const { transactions } = useSelector(state => state.transactions);
+  
+  // Get categories with fallback for demo mode
+  const categoryState = useSelector(state => state.category);
+  const categories = categoryState?.categories || [];
+  
+  // Get transactions with fallback for demo mode
+  const transactionState = useSelector(state => state.transaction);
+  const transactions = transactionState?.transactions || [];
   
   // Chart data and UI state
   const [loading, setLoading] = useState(true);

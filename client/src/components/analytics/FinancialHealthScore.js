@@ -28,7 +28,9 @@ import { getFinancialHealthScore } from '../../redux/actions/analyticsActions';
 
 const FinancialHealthScore = () => {
   const dispatch = useDispatch();
-  const { data, loading, error } = useSelector(state => state.analytics.financialHealth);
+  const analyticsState = useSelector(state => state.analytics);
+  const { financialHealth = {} } = analyticsState || {};
+  const { data = null, loading = false, error = null } = financialHealth || {};
   
   useEffect(() => {
     dispatch(getFinancialHealthScore());

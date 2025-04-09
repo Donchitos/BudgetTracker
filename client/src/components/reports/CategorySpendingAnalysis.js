@@ -65,8 +65,11 @@ const TIME_PERIODS = {
 };
 
 const CategorySpendingAnalysis = () => {
-  const { transactions, loading } = useSelector(state => state.transactions);
-  const { categories } = useSelector(state => state.categories);
+  const transactionState = useSelector(state => state.transaction);
+  const { transactions = [], loading = false } = transactionState || {};
+  
+  const categoryState = useSelector(state => state.category);
+  const { categories = [] } = categoryState || {};
   
   // View state
   const [viewMode, setViewMode] = useState(VIEW_MODES.OVERVIEW);

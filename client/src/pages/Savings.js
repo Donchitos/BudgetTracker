@@ -33,7 +33,8 @@ import {
 
 const Savings = () => {
   const dispatch = useDispatch();
-  const { savingsGoals, stats, loading, error } = useSelector(state => state.savings);
+  const savingsState = useSelector(state => state.savings);
+  const { savingsGoals = [], stats = null, loading = false, error = null } = savingsState || {};
   const [createFormOpen, setCreateFormOpen] = useState(false);
   
   // Load data on component mount

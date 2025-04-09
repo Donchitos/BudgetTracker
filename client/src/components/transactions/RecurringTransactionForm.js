@@ -38,7 +38,8 @@ import { createRecurringTransaction, updateRecurringTransaction } from '../../re
  */
 const RecurringTransactionForm = ({ initialData, onClose }) => {
   const dispatch = useDispatch();
-  const { categories } = useSelector(state => state.categories);
+  const categoryState = useSelector(state => state.category);
+  const { categories = [] } = categoryState || {};
   
   // Form state
   const [transaction, setTransaction] = useState({

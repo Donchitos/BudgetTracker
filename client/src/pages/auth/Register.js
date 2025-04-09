@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { demoLogin } from '../../redux/actions/authActions';
+import { getAuthUrl } from '../../utils/apiConfig';
 import {
   Avatar,
   Button,
@@ -68,10 +70,30 @@ const Register = () => {
     }
     
     try {
-      await dispatch(register({ name, email, password }));
-      navigate('/');
+      console.log('Attempting to register with:', { name, email, password: '******' });
+      
+      // Direct fetch to the server with dynamic URL handling for GitHub Codespaces
+      const response = await fetch(getAuthUrl('register'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+      
+      const data = await response.json();
+      console.log('Registration response:', data);
+      
+      if (data.success) {
+        // Store token manually
+        localStorage.setItem('token', data.token);
+        navigate('/');
+      } else {
+        setError(data.message || 'Registration failed');
+      }
     } catch (err) {
-      setError(err.message || 'Registration failed');
+      console.error('Registration error:', err);
+      setError('Network error: Could not connect to the server');
     }
   };
   
@@ -166,6 +188,24 @@ const Register = () => {
               <Link component={RouterLink} to="/login" variant="body2">
                 Already have an account? Sign in
               </Link>
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Having trouble connecting?
+                </Typography>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => {
+                    // Use the demoLogin action from Redux
+                    dispatch(demoLogin());
+                    
+                    // Navigate to dashboard
+                    navigate('/');
+                  }}
+                >
+                  Register as Demo User
+                </Button>
+              </div>
             </Grid>
           </Grid>
         </Box>
