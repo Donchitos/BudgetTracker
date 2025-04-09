@@ -6,192 +6,351 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Typography,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Grid,
-  Box,
-  Alert,
   Checkbox,
   FormControlLabel,
-  LinearProgress,
-  IconButton
+  TextField,
+  Typography,
+  Box,
+  Divider,
+  Chip,
+  Grid,
+  CircularProgress,
+  Alert,
+  IconButton,
+  useTheme,
+  FormHelperText
 } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CloseIcon from '@mui/icons-material/Close';
-import { updateTransaction } from '../../redux/actions/transactionActions';
+import SaveIcon from '@mui/icons-material/Save';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CategoryIcon from '@mui/icons-material/Category';
+import DateRangeIcon from '@mui/icons-material/DateRange';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import LabelIcon from '@mui/icons-material/Label';
+import NotesIcon from '@mui/icons-material/Notes';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { updateTransactions, deleteTransactions } from '../../redux/actions/transactionActions';
 
 /**
- * BulkEditDialog component
- * 
- * Dialog for editing multiple transactions at once
+ * Dialog for bulk editing multiple transactions at once
  */
 const BulkEditDialog = ({ open, onClose, selectedTransactions = [] }) => {
+  const theme = useTheme();
   const dispatch = useDispatch();
-  const { categories } = useSelector(state => state.categories);
   
-  // Track which fields to update
-  const [fieldChanges, setFieldChanges] = useState({
-    category: false,
-    type: false
+  // Get categories from Redux store
+  const { categories, loading: categoriesLoading } = useSelector(state => state.category);
+  
+  // Local state for form values
+  const [editFields, setEditFields] = useState({
+    category: { value: '', enabled: false },
+    date: { value: null, enabled: false },
+    type: { value: '', enabled: false },
+    tags: { value: [], enabled: false },
+    notes: { value: '', enabled: false },
+    description: { value: '', enabled: false }
   });
   
-  // Track field values
-  const [formData, setFormData] = useState({
-    category: '',
-    type: 'expense'
-  });
+  // State for UI
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+  const [tags, setTags] = useState([]);
+  const [newTag, setNewTag] = useState('');
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   
-  // Success/error state
-  const [success, setSuccess] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [progress, setProgress] = useState(0);
-  
+  // Get available tags from all selected transactions
   useEffect(() => {
-    // Reset form when dialog opens/closes
+    if (selectedTransactions && selectedTransactions.length > 0) {
+      const allTags = [];
+      selectedTransactions.forEach(transaction => {
+        if (transaction.tags && transaction.tags.length > 0) {
+          transaction.tags.forEach(tag => {
+            if (!allTags.includes(tag)) {
+              allTags.push(tag);
+            }
+          });
+        }
+      });
+      setTags(allTags);
+    }
+  }, [selectedTransactions]);
+  
+  // Reset form when dialog is opened
+  useEffect(() => {
     if (open) {
-      setFieldChanges({
-        category: false,
-        type: false
-      });
-      
-      setFormData({
-        category: '',
-        type: 'expense'
-      });
-      
-      setSuccess(false);
-      setUpdating(false);
-      setProgress(0);
+      resetForm();
+      setError(null);
+      setDeleteMode(false);
+      setConfirmDelete(false);
     }
   }, [open]);
   
-  // Handle toggling which fields to update
+  // Reset form to initial state
+  const resetForm = () => {
+    setEditFields({
+      category: { value: '', enabled: false },
+      date: { value: null, enabled: false },
+      type: { value: '', enabled: false },
+      tags: { value: [], enabled: false },
+      notes: { value: '', enabled: false },
+      description: { value: '', enabled: false }
+    });
+  };
+  
+  // Handle field toggle
   const handleFieldToggle = (field) => {
-    setFieldChanges({
-      ...fieldChanges,
-      [field]: !fieldChanges[field]
-    });
-  };
-  
-  // Handle form field changes
-  const handleChange = (field, value) => {
-    setFormData({
-      ...formData,
-      [field]: value
-    });
-  };
-  
-  // Count selected transactions
-  const transactionCount = selectedTransactions.length;
-  
-  // Handle form submission
-  const handleSubmit = async () => {
-    // Only include fields that are checked
-    const updateData = {};
-    
-    if (fieldChanges.category) updateData.category = formData.category;
-    if (fieldChanges.type) updateData.type = formData.type;
-    
-    // Update each transaction one by one
-    setUpdating(true);
-    let completedCount = 0;
-    
-    for (const transaction of selectedTransactions) {
-      try {
-        await dispatch(updateTransaction(transaction._id, updateData));
-        completedCount++;
-        setProgress((completedCount / selectedTransactions.length) * 100);
-      } catch (error) {
-        console.error(`Error updating transaction ${transaction._id}:`, error);
+    setEditFields(prev => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        enabled: !prev[field].enabled
       }
-    }
-    
-    setUpdating(false);
-    setSuccess(true);
-    
-    // Close dialog after a delay
-    setTimeout(() => {
-      onClose();
-    }, 1500);
+    }));
   };
   
-  // Check if any fields are selected for update
-  const hasSelectedFields = Object.values(fieldChanges).some(value => value);
+  // Handle field value change
+  const handleFieldChange = (field, value) => {
+    setEditFields(prev => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        value
+      }
+    }));
+  };
+  
+  // Handle tags
+  const handleAddTag = () => {
+    if (newTag && !editFields.tags.value.includes(newTag)) {
+      const updatedTags = [...editFields.tags.value, newTag];
+      handleFieldChange('tags', updatedTags);
+      setNewTag('');
+    }
+  };
+  
+  const handleRemoveTag = (tag) => {
+    const updatedTags = editFields.tags.value.filter(t => t !== tag);
+    handleFieldChange('tags', updatedTags);
+  };
+  
+  // Handle save/update
+  const handleSave = async () => {
+    try {
+      setProcessing(true);
+      setError(null);
+      
+      // Create update object with only enabled fields
+      const updateData = {};
+      
+      if (editFields.category.enabled && editFields.category.value) {
+        updateData.category = editFields.category.value;
+      }
+      
+      if (editFields.date.enabled && editFields.date.value) {
+        updateData.date = editFields.date.value;
+      }
+      
+      if (editFields.type.enabled && editFields.type.value) {
+        updateData.type = editFields.type.value;
+      }
+      
+      if (editFields.tags.enabled) {
+        updateData.tags = editFields.tags.value;
+      }
+      
+      if (editFields.notes.enabled) {
+        updateData.notes = editFields.notes.value;
+      }
+      
+      if (editFields.description.enabled && editFields.description.value) {
+        updateData.description = editFields.description.value;
+      }
+      
+      // Check if there are any fields to update
+      if (Object.keys(updateData).length === 0) {
+        setError('Please select at least one field to update');
+        setProcessing(false);
+        return;
+      }
+      
+      // Get IDs of selected transactions
+      const transactionIds = selectedTransactions.map(t => t._id);
+      
+      // Dispatch update action
+      await dispatch(updateTransactions(transactionIds, updateData));
+      
+      setProcessing(false);
+      onClose(true); // Close with success flag
+    } catch (err) {
+      console.error('Error updating transactions', err);
+      setError(err.message || 'An error occurred while updating transactions');
+      setProcessing(false);
+    }
+  };
+  
+  // Handle delete
+  const handleDelete = async () => {
+    try {
+      if (!confirmDelete) {
+        setConfirmDelete(true);
+        return;
+      }
+      
+      setProcessing(true);
+      setError(null);
+      
+      // Get IDs of selected transactions
+      const transactionIds = selectedTransactions.map(t => t._id);
+      
+      // Dispatch delete action
+      await dispatch(deleteTransactions(transactionIds));
+      
+      setProcessing(false);
+      onClose(true); // Close with success flag
+    } catch (err) {
+      console.error('Error deleting transactions', err);
+      setError(err.message || 'An error occurred while deleting transactions');
+      setProcessing(false);
+    }
+  };
+  
+  // Toggle between edit and delete modes
+  const toggleDeleteMode = () => {
+    setDeleteMode(!deleteMode);
+    setConfirmDelete(false);
+  };
+  
+  // Cancel and close dialog
+  const handleCancel = () => {
+    onClose();
+  };
   
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose}
-      maxWidth="sm"
+    <Dialog
+      open={open}
+      onClose={processing ? null : handleCancel}
+      maxWidth="md"
       fullWidth
     >
       <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
-            Bulk Edit Transactions
-          </Typography>
-          <IconButton edge="end" color="inherit" onClick={onClose} aria-label="close">
-            <CloseIcon />
-          </IconButton>
-        </Box>
+        {deleteMode ? 'Delete Transactions' : 'Bulk Edit Transactions'}
+        <IconButton
+          aria-label="close"
+          onClick={handleCancel}
+          disabled={processing}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: theme.palette.grey[500],
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
       
-      <DialogContent>
-        {updating && (
-          <Box mb={2}>
-            <LinearProgress variant="determinate" value={progress} />
-            <Typography variant="body2" align="center" color="textSecondary">
-              Updating transactions: {Math.round(progress)}%
-            </Typography>
-          </Box>
+      <DialogContent dividers>
+        {/* Header with transaction count */}
+        <Typography variant="subtitle1" gutterBottom>
+          Selected Transactions: {selectedTransactions.length}
+        </Typography>
+        
+        {/* Error alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
         )}
         
-        {success && (
-          <Box mb={2}>
-            <Alert severity="success">
-              Successfully updated {transactionCount} transaction{transactionCount !== 1 ? 's' : ''}!
+        {/* Delete mode warning */}
+        {deleteMode ? (
+          <Box sx={{ mb: 2 }}>
+            <Alert 
+              severity={confirmDelete ? "error" : "warning"}
+              sx={{ mb: 2 }}
+            >
+              {confirmDelete ? (
+                <>
+                  <Typography variant="subtitle2">
+                    Are you sure you want to delete {selectedTransactions.length} transactions?
+                  </Typography>
+                  <Typography variant="body2">
+                    This action cannot be undone.
+                  </Typography>
+                </>
+              ) : (
+                "Warning: You are about to delete multiple transactions. This action cannot be undone."
+              )}
             </Alert>
-          </Box>
-        )}
-        
-        {!updating && !success && (
-          <>
-            <Box mb={2}>
-              <Alert severity="info" icon={<InfoOutlinedIcon />}>
-                You are editing <strong>{transactionCount}</strong> transaction{transactionCount !== 1 ? 's' : ''}. 
-                Select which fields to update and their new values.
-              </Alert>
-            </Box>
             
+            <Box sx={{ 
+              p: 2, 
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 1,
+              bgcolor: theme.palette.background.default,
+              maxHeight: '200px',
+              overflow: 'auto'
+            }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Transactions to be deleted:
+              </Typography>
+              
+              {selectedTransactions.map((transaction) => (
+                <Chip
+                  key={transaction._id}
+                  label={`${transaction.description} (${new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD'
+                  }).format(transaction.amount)})`}
+                  size="small"
+                  color={transaction.type === 'income' ? 'success' : 'error'}
+                  sx={{ m: 0.5 }}
+                />
+              ))}
+            </Box>
+          </Box>
+        ) : (
+          /* Edit mode form */
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Grid container spacing={3}>
-              {/* Category Field */}
-              <Grid item xs={12}>
-                <Box mb={1}>
+              {/* Category */}
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', mb: 1 }}>
                   <FormControlLabel
                     control={
-                      <Checkbox 
-                        checked={fieldChanges.category}
+                      <Checkbox
+                        checked={editFields.category.enabled}
                         onChange={() => handleFieldToggle('category')}
                       />
                     }
-                    label="Update Category"
+                    label="Category"
                   />
+                  <CategoryIcon sx={{ ml: 'auto', color: 'action.active' }} />
                 </Box>
-                <FormControl 
-                  fullWidth 
-                  disabled={!fieldChanges.category}
+                
+                <FormControl
+                  fullWidth
+                  disabled={!editFields.category.enabled}
                   size="small"
                 >
-                  <InputLabel>Category</InputLabel>
+                  <InputLabel>Select Category</InputLabel>
                   <Select
-                    value={formData.category}
-                    onChange={(e) => handleChange('category', e.target.value)}
-                    label="Category"
+                    value={editFields.category.value}
+                    onChange={(e) => handleFieldChange('category', e.target.value)}
+                    label="Select Category"
                   >
-                    {categories?.map(category => (
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {categories && categories.map((category) => (
                       <MenuItem key={category._id} value={category._id}>
                         {category.name}
                       </MenuItem>
@@ -200,53 +359,240 @@ const BulkEditDialog = ({ open, onClose, selectedTransactions = [] }) => {
                 </FormControl>
               </Grid>
               
-              {/* Transaction Type Field */}
-              <Grid item xs={12}>
-                <Box mb={1}>
+              {/* Transaction Type */}
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', mb: 1 }}>
                   <FormControlLabel
                     control={
-                      <Checkbox 
-                        checked={fieldChanges.type}
+                      <Checkbox
+                        checked={editFields.type.enabled}
                         onChange={() => handleFieldToggle('type')}
                       />
                     }
-                    label="Update Transaction Type"
+                    label="Transaction Type"
                   />
+                  <AttachMoneyIcon sx={{ ml: 'auto', color: 'action.active' }} />
                 </Box>
-                <FormControl 
-                  fullWidth 
-                  disabled={!fieldChanges.type}
+                
+                <FormControl
+                  fullWidth
+                  disabled={!editFields.type.enabled}
                   size="small"
                 >
                   <InputLabel>Transaction Type</InputLabel>
                   <Select
-                    value={formData.type}
-                    onChange={(e) => handleChange('type', e.target.value)}
+                    value={editFields.type.value}
+                    onChange={(e) => handleFieldChange('type', e.target.value)}
                     label="Transaction Type"
                   >
-                    <MenuItem value="expense">Expense</MenuItem>
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
                     <MenuItem value="income">Income</MenuItem>
+                    <MenuItem value="expense">Expense</MenuItem>
                     <MenuItem value="transfer">Transfer</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
+              
+              {/* Date */}
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editFields.date.enabled}
+                        onChange={() => handleFieldToggle('date')}
+                      />
+                    }
+                    label="Date"
+                  />
+                  <DateRangeIcon sx={{ ml: 'auto', color: 'action.active' }} />
+                </Box>
+                
+                <DatePicker
+                  label="Transaction Date"
+                  value={editFields.date.value}
+                  onChange={(newValue) => handleFieldChange('date', newValue)}
+                  disabled={!editFields.date.enabled}
+                  renderInput={(params) => <TextField {...params} fullWidth size="small" />}
+                />
+              </Grid>
+              
+              {/* Description */}
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ display: 'flex', mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editFields.description.enabled}
+                        onChange={() => handleFieldToggle('description')}
+                      />
+                    }
+                    label="Description"
+                  />
+                  <EditIcon sx={{ ml: 'auto', color: 'action.active' }} />
+                </Box>
+                
+                <TextField
+                  label="Description"
+                  value={editFields.description.value}
+                  onChange={(e) => handleFieldChange('description', e.target.value)}
+                  disabled={!editFields.description.enabled}
+                  fullWidth
+                  size="small"
+                />
+              </Grid>
+              
+              {/* Tags */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editFields.tags.enabled}
+                        onChange={() => handleFieldToggle('tags')}
+                      />
+                    }
+                    label="Tags"
+                  />
+                  <LabelIcon sx={{ ml: 'auto', color: 'action.active' }} />
+                </Box>
+                
+                <Box sx={{ display: 'flex', mb: 1 }}>
+                  <TextField
+                    label="Add a tag"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    disabled={!editFields.tags.enabled}
+                    size="small"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    sx={{ flexGrow: 1, mr: 1 }}
+                  />
+                  
+                  <Button
+                    variant="outlined"
+                    onClick={handleAddTag}
+                    disabled={!editFields.tags.enabled || !newTag}
+                  >
+                    Add
+                  </Button>
+                </Box>
+                
+                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {editFields.tags.value.map((tag) => (
+                    <Chip
+                      key={tag}
+                      label={tag}
+                      onDelete={() => handleRemoveTag(tag)}
+                      disabled={!editFields.tags.enabled}
+                      size="small"
+                    />
+                  ))}
+                  
+                  {editFields.tags.value.length === 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      No tags selected
+                    </Typography>
+                  )}
+                </Box>
+                
+                {tags.length > 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      Available tags from selected transactions:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
+                      {tags.map((tag) => (
+                        <Chip
+                          key={tag}
+                          label={tag}
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            if (editFields.tags.enabled && !editFields.tags.value.includes(tag)) {
+                              handleFieldChange('tags', [...editFields.tags.value, tag]);
+                            }
+                          }}
+                          disabled={!editFields.tags.enabled}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </Grid>
+              
+              {/* Notes */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editFields.notes.enabled}
+                        onChange={() => handleFieldToggle('notes')}
+                      />
+                    }
+                    label="Notes"
+                  />
+                  <NotesIcon sx={{ ml: 'auto', color: 'action.active' }} />
+                </Box>
+                
+                <TextField
+                  label="Notes"
+                  value={editFields.notes.value}
+                  onChange={(e) => handleFieldChange('notes', e.target.value)}
+                  disabled={!editFields.notes.enabled}
+                  fullWidth
+                  multiline
+                  rows={3}
+                  size="small"
+                />
+              </Grid>
             </Grid>
-          </>
+          </LocalizationProvider>
         )}
       </DialogContent>
       
-      <DialogActions>
-        <Button onClick={onClose} color="inherit">
-          Cancel
-        </Button>
-        <Button 
-          onClick={handleSubmit} 
-          color="primary" 
-          variant="contained"
-          disabled={!hasSelectedFields || updating || success}
+      <DialogActions 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          p: 2
+        }}
+      >
+        <Button
+          color="secondary"
+          onClick={toggleDeleteMode}
+          startIcon={deleteMode ? <EditIcon /> : <DeleteIcon />}
+          disabled={processing}
         >
-          {updating ? 'Updating...' : 'Update Transactions'}
+          {deleteMode ? 'Switch to Edit Mode' : 'Switch to Delete Mode'}
         </Button>
+        
+        <Box>
+          <Button 
+            onClick={handleCancel} 
+            disabled={processing}
+            sx={{ mr: 1 }}
+          >
+            Cancel
+          </Button>
+          
+          <Button
+            variant="contained"
+            color={deleteMode ? "error" : "primary"}
+            onClick={deleteMode ? handleDelete : handleSave}
+            disabled={processing}
+            startIcon={processing ? <CircularProgress size={20} /> : (deleteMode ? <DeleteIcon /> : <SaveIcon />)}
+          >
+            {processing ? 'Processing...' : (deleteMode ? (confirmDelete ? 'Confirm Delete' : 'Delete') : 'Update')}
+          </Button>
+        </Box>
       </DialogActions>
     </Dialog>
   );

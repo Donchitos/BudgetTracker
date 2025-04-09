@@ -1,550 +1,597 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Typography,
-  TextField,
-  Button,
-  Grid,
   Paper,
-  Autocomplete,
-  Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Slider,
-  InputAdornment,
+  TextField,
+  Grid,
+  Button,
   IconButton,
+  Chip,
+  MenuItem,
   Collapse,
   Divider,
-  Stack
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
+  InputAdornment,
+  Slider,
+  useTheme,
+  Tooltip,
+  Switch
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import SaveIcon from '@mui/icons-material/Save';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
-import { useSelector } from 'react-redux';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import HistoryIcon from '@mui/icons-material/History';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
-const AdvancedSearchPanel = ({ onSearch, initialFilters = null }) => {
-  const { categories } = useSelector(state => state.categories);
-  const { transactions } = useSelector(state => state.transactions);
+/**
+ * Advanced search component for transactions with multiple filter options
+ */
+const AdvancedSearchPanel = ({ onSearch, initialFilters = {} }) => {
+  const theme = useTheme();
+  const dispatch = useDispatch();
   
-  // Extract unique subcategories and tags from transactions
-  const [subcategoryOptions, setSubcategoryOptions] = useState([]);
-  const [tagOptions, setTagOptions] = useState([]);
+  // Get categories, tags, and saved searches from Redux store
+  const { categories } = useSelector(state => state.category);
   
-  const [expanded, setExpanded] = useState(false);
-  const [savedFilters, setSavedFilters] = useState([]);
-  const [saveFilterDialogOpen, setSaveFilterDialogOpen] = useState(false);
-  const [filterName, setFilterName] = useState('');
-  
-  // Search filters state
+  // State for search filters
   const [filters, setFilters] = useState({
     searchText: '',
-    startDate: startOfMonth(new Date()),
+    startDate: subMonths(startOfMonth(new Date()), 2),
     endDate: endOfMonth(new Date()),
-    type: '',
     categories: [],
-    subcategories: [],
+    types: [],
+    amountRange: [0, 5000],
     tags: [],
-    amountMin: '',
-    amountMax: '',
-    sortBy: 'date',
-    sortOrder: 'desc'
+    includeNotes: true,
+    savedSearchId: null,
+    ...initialFilters
   });
   
-  // Initialize with provided filters if any
-  useEffect(() => {
-    if (initialFilters) {
-      setFilters(prev => ({
-        ...prev,
-        ...initialFilters
-      }));
-    }
-  }, [initialFilters]);
+  // UI State
+  const [expanded, setExpanded] = useState(false);
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [recentSearches, setRecentSearches] = useState([]);
   
-  // Load saved filters from localStorage
+  // Load saved searches from localStorage on component mount
   useEffect(() => {
-    const savedFiltersData = localStorage.getItem('savedTransactionFilters');
-    if (savedFiltersData) {
+    const savedSearchesJson = localStorage.getItem('savedTransactionSearches');
+    if (savedSearchesJson) {
       try {
-        const parsedFilters = JSON.parse(savedFiltersData);
-        setSavedFilters(parsedFilters);
-      } catch (err) {
-        console.error('Error loading saved filters:', err);
+        const parsedSearches = JSON.parse(savedSearchesJson);
+        setSavedSearches(parsedSearches);
+      } catch (e) {
+        console.error('Error parsing saved searches', e);
+      }
+    }
+    
+    const recentSearchesJson = localStorage.getItem('recentTransactionSearches');
+    if (recentSearchesJson) {
+      try {
+        const parsedRecent = JSON.parse(recentSearchesJson);
+        setRecentSearches(parsedRecent);
+      } catch (e) {
+        console.error('Error parsing recent searches', e);
       }
     }
   }, []);
   
-  // Extract unique subcategories and tags from transactions
-  useEffect(() => {
-    if (transactions && transactions.length > 0) {
-      // Extract subcategories
-      const subcats = transactions
-        .filter(t => t.subcategory)
-        .map(t => t.subcategory);
-      setSubcategoryOptions([...new Set(subcats)]);
-      
-      // Extract tags
-      const allTags = transactions.reduce((tags, t) => {
-        if (t.tags && t.tags.length > 0) {
-          return [...tags, ...t.tags];
-        }
-        return tags;
-      }, []);
-      setTagOptions([...new Set(allTags)]);
-    }
-  }, [transactions]);
-  
-  // Handle filter changes
+  // Handle changes to filter fields
   const handleFilterChange = (field, value) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters({
+      ...filters,
       [field]: value
-    }));
-  };
-  
-  // Apply search filters
-  const handleSearch = () => {
-    // Prepare filters for the API
-    const searchParams = {
-      ...filters
-    };
-    
-    // Handle date conversion
-    if (searchParams.startDate) {
-      searchParams.startDate = format(searchParams.startDate, 'yyyy-MM-dd');
-    }
-    
-    if (searchParams.endDate) {
-      searchParams.endDate = format(searchParams.endDate, 'yyyy-MM-dd');
-    }
-    
-    // Convert arrays to comma-separated strings
-    if (searchParams.categories && searchParams.categories.length > 0) {
-      searchParams.categories = searchParams.categories.join(',');
-    } else {
-      delete searchParams.categories;
-    }
-    
-    if (searchParams.subcategories && searchParams.subcategories.length > 0) {
-      searchParams.subcategories = searchParams.subcategories.join(',');
-    } else {
-      delete searchParams.subcategories;
-    }
-    
-    if (searchParams.tags && searchParams.tags.length > 0) {
-      searchParams.tags = searchParams.tags.join(',');
-    } else {
-      delete searchParams.tags;
-    }
-    
-    // Handle empty values
-    Object.keys(searchParams).forEach(key => {
-      if (searchParams[key] === '' || searchParams[key] === null) {
-        delete searchParams[key];
-      }
     });
-    
-    // Add sorting
-    if (searchParams.sortBy && searchParams.sortOrder) {
-      searchParams.sortBy = `${searchParams.sortBy}:${searchParams.sortOrder}`;
-      delete searchParams.sortOrder;
-    }
-    
-    onSearch(searchParams);
   };
   
-  // Reset filters
-  const handleReset = () => {
+  // Handle text search change
+  const handleSearchTextChange = (e) => {
+    handleFilterChange('searchText', e.target.value);
+  };
+  
+  // Handle amount range change
+  const handleAmountRangeChange = (event, newValue) => {
+    handleFilterChange('amountRange', newValue);
+  };
+  
+  // Handle toggling a category
+  const handleToggleCategory = (categoryId) => {
+    const currentCategories = [...filters.categories];
+    const index = currentCategories.indexOf(categoryId);
+    
+    if (index === -1) {
+      currentCategories.push(categoryId);
+    } else {
+      currentCategories.splice(index, 1);
+    }
+    
+    handleFilterChange('categories', currentCategories);
+  };
+  
+  // Handle toggling a transaction type
+  const handleToggleType = (type) => {
+    const currentTypes = [...filters.types];
+    const index = currentTypes.indexOf(type);
+    
+    if (index === -1) {
+      currentTypes.push(type);
+    } else {
+      currentTypes.splice(index, 1);
+    }
+    
+    handleFilterChange('types', currentTypes);
+  };
+  
+  // Clear all filters
+  const handleClearFilters = () => {
     setFilters({
       searchText: '',
-      startDate: startOfMonth(new Date()),
+      startDate: subMonths(startOfMonth(new Date()), 2),
       endDate: endOfMonth(new Date()),
-      type: '',
       categories: [],
-      subcategories: [],
+      types: [],
+      amountRange: [0, 5000],
       tags: [],
-      amountMin: '',
-      amountMax: '',
-      sortBy: 'date',
-      sortOrder: 'desc'
+      includeNotes: true,
+      savedSearchId: null
     });
   };
   
-  // Save current filters
-  const handleSaveFilter = () => {
-    if (!filterName.trim()) return;
+  // Save current search
+  const handleSaveSearch = () => {
+    const searchName = prompt('Enter a name for this search:');
+    if (!searchName) return;
     
-    const newSavedFilter = {
+    const newSavedSearch = {
       id: Date.now().toString(),
-      name: filterName,
+      name: searchName,
       filters: { ...filters }
     };
     
-    const updatedFilters = [...savedFilters, newSavedFilter];
-    setSavedFilters(updatedFilters);
+    const updatedSavedSearches = [...savedSearches, newSavedSearch];
+    setSavedSearches(updatedSavedSearches);
     
     // Save to localStorage
-    localStorage.setItem('savedTransactionFilters', JSON.stringify(updatedFilters));
+    localStorage.setItem('savedTransactionSearches', JSON.stringify(updatedSavedSearches));
     
-    // Reset dialog
-    setFilterName('');
-    setSaveFilterDialogOpen(false);
+    // Set as current search
+    setFilters({
+      ...filters,
+      savedSearchId: newSavedSearch.id
+    });
   };
   
-  // Apply saved filter
-  const handleApplySavedFilter = (savedFilter) => {
-    setFilters(savedFilter.filters);
-    
-    // Apply the search immediately
-    onSearch(savedFilter.filters);
+  // Load saved search
+  const handleLoadSavedSearch = (savedSearchId) => {
+    const savedSearch = savedSearches.find(search => search.id === savedSearchId);
+    if (savedSearch) {
+      setFilters({
+        ...savedSearch.filters,
+        savedSearchId
+      });
+    }
   };
   
-  // Delete saved filter
-  const handleDeleteSavedFilter = (filterId) => {
-    const updatedFilters = savedFilters.filter(f => f.id !== filterId);
-    setSavedFilters(updatedFilters);
+  // Delete saved search
+  const handleDeleteSavedSearch = (e, savedSearchId) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this saved search?')) return;
     
-    // Update localStorage
-    localStorage.setItem('savedTransactionFilters', JSON.stringify(updatedFilters));
+    const updatedSavedSearches = savedSearches.filter(search => search.id !== savedSearchId);
+    setSavedSearches(updatedSavedSearches);
+    
+    // Save to localStorage
+    localStorage.setItem('savedTransactionSearches', JSON.stringify(updatedSavedSearches));
+    
+    // Reset current savedSearchId if it was the deleted one
+    if (filters.savedSearchId === savedSearchId) {
+      setFilters({
+        ...filters,
+        savedSearchId: null
+      });
+    }
+  };
+  
+  // Execute search
+  const executeSearch = () => {
+    // Save to recent searches
+    const recentSearch = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      filters: { ...filters }
+    };
+    
+    const updatedRecentSearches = [recentSearch, ...recentSearches.slice(0, 4)];
+    setRecentSearches(updatedRecentSearches);
+    
+    // Save to localStorage
+    localStorage.setItem('recentTransactionSearches', JSON.stringify(updatedRecentSearches));
+    
+    // Call the onSearch callback with the current filters
+    onSearch(filters);
+  };
+  
+  // Function to check if any filter is active
+  const hasActiveFilters = () => {
+    return (
+      filters.searchText !== '' ||
+      filters.categories.length > 0 ||
+      filters.types.length > 0 ||
+      filters.tags.length > 0 ||
+      filters.amountRange[0] > 0 ||
+      filters.amountRange[1] < 5000 ||
+      !filters.includeNotes
+    );
+  };
+  
+  // Format amount for display
+  const formatAmount = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
   
   return (
-    <Paper sx={{ p: 2, mb: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6">Search Transactions</Typography>
-        <Button
-          endIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? 'Less Filters' : 'More Filters'}
-        </Button>
-      </Box>
-      
-      <Grid container spacing={2} sx={{ mt: 1 }}>
-        {/* Basic search always visible */}
-        <Grid item xs={12} md={6}>
-          <TextField
-            label="Search"
-            value={filters.searchText}
-            onChange={(e) => handleFilterChange('searchText', e.target.value)}
-            placeholder="Search in descriptions and notes"
-            fullWidth
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-              endAdornment: filters.searchText && (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => handleFilterChange('searchText', '')}
-                    edge="end"
-                  >
-                    <ClearIcon />
-                  </IconButton>
-                </InputAdornment>
-              )
-            }}
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={2}>
-          <FormControl fullWidth>
-            <InputLabel>Type</InputLabel>
-            <Select
-              value={filters.type}
-              onChange={(e) => handleFilterChange('type', e.target.value)}
-              label="Type"
-            >
-              <MenuItem value="">All Types</MenuItem>
-              <MenuItem value="income">Income</MenuItem>
-              <MenuItem value="expense">Expense</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        
-        <Grid item xs={12} md={4}>
-          <Stack direction="row" spacing={1}>
+    <Paper 
+      elevation={2} 
+      sx={{ 
+        mb: 3, 
+        overflow: 'hidden',
+        borderRadius: 2,
+        transition: 'all 0.3s ease'
+      }}
+    >
+      {/* Basic Search Bar */}
+      <Box sx={{ p: 2 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs>
+            <TextField
+              fullWidth
+              value={filters.searchText}
+              onChange={handleSearchTextChange}
+              placeholder="Search transactions"
+              variant="outlined"
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: filters.searchText && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleFilterChange('searchText', '')}
+                      edge="end"
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  executeSearch();
+                }
+              }}
+            />
+          </Grid>
+          
+          <Grid item>
             <Button
               variant="contained"
-              onClick={handleSearch}
+              color="primary"
+              onClick={executeSearch}
               startIcon={<SearchIcon />}
-              fullWidth
             >
               Search
             </Button>
-            <Button
-              variant="outlined"
-              onClick={handleReset}
-              startIcon={<ClearIcon />}
-            >
-              Clear
-            </Button>
-          </Stack>
-        </Grid>
-      </Grid>
-      
-      {/* Expanded filters */}
-      <Collapse in={expanded}>
-        <Box sx={{ mt: 3 }}>
-          <Divider sx={{ mb: 3 }} />
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="Start Date"
-                  value={filters.startDate}
-                  onChange={(date) => handleFilterChange('startDate', date)}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
-                />
-              </LocalizationProvider>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="End Date"
-                  value={filters.endDate}
-                  onChange={(date) => handleFilterChange('endDate', date)}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
-                  minDate={filters.startDate}
-                />
-              </LocalizationProvider>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                multiple
-                options={categories}
-                getOptionLabel={(option) => option.name}
-                value={categories.filter(cat => 
-                  filters.categories.includes(cat._id)
-                )}
-                onChange={(event, newValue) => {
-                  handleFilterChange('categories', newValue.map(cat => cat._id));
-                }}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      key={option._id}
-                      label={option.name}
-                      {...getTagProps({ index })}
-                      style={{ backgroundColor: option.color }}
-                    />
-                  ))
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Categories"
-                    placeholder="Select Categories"
-                  />
-                )}
-                fullWidth
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                multiple
-                freeSolo
-                options={subcategoryOptions}
-                value={filters.subcategories}
-                onChange={(event, newValue) => {
-                  handleFilterChange('subcategories', newValue);
-                }}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      key={index}
-                      label={option}
-                      {...getTagProps({ index })}
-                    />
-                  ))
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Subcategories"
-                    placeholder="Select Subcategories"
-                  />
-                )}
-                fullWidth
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Autocomplete
-                multiple
-                freeSolo
-                options={tagOptions}
-                value={filters.tags}
-                onChange={(event, newValue) => {
-                  handleFilterChange('tags', newValue);
-                }}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      key={index}
-                      label={option}
-                      {...getTagProps({ index })}
-                    />
-                  ))
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Tags"
-                    placeholder="Filter by Tags"
-                  />
-                )}
-                fullWidth
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Minimum Amount"
-                value={filters.amountMin}
-                onChange={(e) => handleFilterChange('amountMin', e.target.value)}
-                type="number"
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                }}
-                fullWidth
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Maximum Amount"
-                value={filters.amountMax}
-                onChange={(e) => handleFilterChange('amountMax', e.target.value)}
-                type="number"
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                }}
-                fullWidth
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Sort By</InputLabel>
-                <Select
-                  value={filters.sortBy}
-                  onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                  label="Sort By"
-                >
-                  <MenuItem value="date">Date</MenuItem>
-                  <MenuItem value="amount">Amount</MenuItem>
-                  <MenuItem value="description">Description</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Sort Order</InputLabel>
-                <Select
-                  value={filters.sortOrder}
-                  onChange={(e) => handleFilterChange('sortOrder', e.target.value)}
-                  label="Sort Order"
-                >
-                  <MenuItem value="asc">Ascending</MenuItem>
-                  <MenuItem value="desc">Descending</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
           </Grid>
           
-          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-            <Button
-              variant="outlined"
-              startIcon={<SaveIcon />}
-              onClick={() => setSaveFilterDialogOpen(true)}
-            >
-              Save Filter
-            </Button>
+          <Grid item>
+            <Tooltip title={expanded ? "Hide filters" : "Show more filters"}>
+              <IconButton 
+                color={expanded || hasActiveFilters() ? "primary" : "default"}
+                onClick={() => setExpanded(!expanded)}
+                size="small"
+              >
+                <FilterListIcon />
+                {expanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+              </IconButton>
+            </Tooltip>
+          </Grid>
+        </Grid>
+        
+        {/* Active filter chips */}
+        {hasActiveFilters() && (
+          <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {filters.searchText && (
+              <Chip
+                label={`Text: ${filters.searchText}`}
+                size="small"
+                onDelete={() => handleFilterChange('searchText', '')}
+              />
+            )}
+            
+            {filters.categories.map(categoryId => {
+              const category = categories.find(c => c._id === categoryId);
+              return (
+                <Chip
+                  key={categoryId}
+                  label={`Category: ${category ? category.name : 'Unknown'}`}
+                  size="small"
+                  onDelete={() => handleToggleCategory(categoryId)}
+                  sx={{
+                    bgcolor: category?.color ? `${category.color}30` : undefined
+                  }}
+                />
+              );
+            })}
+            
+            {filters.types.map(type => (
+              <Chip
+                key={type}
+                label={`Type: ${type.charAt(0).toUpperCase() + type.slice(1)}`}
+                size="small"
+                onDelete={() => handleToggleType(type)}
+                color={type === 'income' ? 'success' : 'error'}
+                variant="outlined"
+              />
+            ))}
+            
+            {(filters.amountRange[0] > 0 || filters.amountRange[1] < 5000) && (
+              <Chip
+                label={`Amount: ${formatAmount(filters.amountRange[0])} - ${formatAmount(filters.amountRange[1])}`}
+                size="small"
+                onDelete={() => handleFilterChange('amountRange', [0, 5000])}
+              />
+            )}
+            
+            {filters.tags.map(tag => (
+              <Chip
+                key={tag}
+                label={`Tag: ${tag}`}
+                size="small"
+                onDelete={() => {
+                  const newTags = filters.tags.filter(t => t !== tag);
+                  handleFilterChange('tags', newTags);
+                }}
+              />
+            ))}
             
             <Button
-              variant="contained"
-              onClick={handleSearch}
-              startIcon={<SearchIcon />}
+              size="small"
+              variant="outlined"
+              startIcon={<ClearIcon />}
+              onClick={handleClearFilters}
             >
-              Apply Filters
+              Clear All
             </Button>
           </Box>
-          
-          {/* Saved Filters Section */}
-          {savedFilters.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Divider sx={{ mb: 2 }} />
-              <Typography variant="subtitle1" gutterBottom>
-                Saved Filters
-              </Typography>
+        )}
+      </Box>
+      
+      {/* Advanced filters panel */}
+      <Collapse in={expanded}>
+        <Divider />
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <Box sx={{ p: 2 }}>
+            <Grid container spacing={3}>
+              {/* Date Range */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Date Range
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <DatePicker
+                      label="From"
+                      value={filters.startDate}
+                      onChange={(newValue) => handleFilterChange('startDate', newValue)}
+                      renderInput={(params) => <TextField {...params} fullWidth size="small" />}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <DatePicker
+                      label="To"
+                      value={filters.endDate}
+                      onChange={(newValue) => handleFilterChange('endDate', newValue)}
+                      renderInput={(params) => <TextField {...params} fullWidth size="small" />}
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
               
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {savedFilters.map(filter => (
-                  <Chip
-                    key={filter.id}
-                    label={filter.name}
-                    icon={<BookmarkIcon />}
-                    onClick={() => handleApplySavedFilter(filter)}
-                    onDelete={() => handleDeleteSavedFilter(filter.id)}
-                    color="primary"
-                    variant="outlined"
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-          
-          {/* Save Filter Dialog */}
-          {saveFilterDialogOpen && (
-            <Paper sx={{ mt: 2, p: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Save Current Filter
-              </Typography>
-              
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <TextField
-                  label="Filter Name"
-                  value={filterName}
-                  onChange={(e) => setFilterName(e.target.value)}
-                  fullWidth
-                  size="small"
-                  autoFocus
+              {/* Amount Range */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Amount Range: {formatAmount(filters.amountRange[0])} - {formatAmount(filters.amountRange[1])}
+                </Typography>
+                <Slider
+                  value={filters.amountRange}
+                  onChange={handleAmountRangeChange}
+                  min={0}
+                  max={5000}
+                  step={50}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(value) => formatAmount(value)}
                 />
+              </Grid>
+              
+              {/* Transaction Types */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Transaction Type
+                </Typography>
+                <FormGroup row>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={filters.types.includes('income')}
+                        onChange={() => handleToggleType('income')}
+                        color="success"
+                      />
+                    }
+                    label="Income"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={filters.types.includes('expense')}
+                        onChange={() => handleToggleType('expense')}
+                        color="error"
+                      />
+                    }
+                    label="Expense"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={filters.types.includes('transfer')}
+                        onChange={() => handleToggleType('transfer')}
+                        color="info"
+                      />
+                    }
+                    label="Transfer"
+                  />
+                </FormGroup>
+              </Grid>
+              
+              {/* Search Settings */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Search Settings
+                </Typography>
+                <FormGroup>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={filters.includeNotes}
+                        onChange={(e) => handleFilterChange('includeNotes', e.target.checked)}
+                      />
+                    }
+                    label="Include notes in search"
+                  />
+                </FormGroup>
+              </Grid>
+              
+              {/* Categories */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Categories ({filters.categories.length} selected)
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {categories?.map(category => (
+                    <Chip
+                      key={category._id}
+                      label={category.name}
+                      onClick={() => handleToggleCategory(category._id)}
+                      color={filters.categories.includes(category._id) ? 'primary' : 'default'}
+                      variant={filters.categories.includes(category._id) ? 'filled' : 'outlined'}
+                      sx={{
+                        bgcolor: filters.categories.includes(category._id) && category.color
+                          ? `${category.color}30`
+                          : undefined
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Grid>
+              
+              {/* Saved Searches */}
+              {savedSearches.length > 0 && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Saved Searches
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {savedSearches.map(savedSearch => (
+                      <Chip
+                        key={savedSearch.id}
+                        label={savedSearch.name}
+                        onClick={() => handleLoadSavedSearch(savedSearch.id)}
+                        onDelete={(e) => handleDeleteSavedSearch(e, savedSearch.id)}
+                        color={filters.savedSearchId === savedSearch.id ? 'primary' : 'default'}
+                        variant={filters.savedSearchId === savedSearch.id ? 'filled' : 'outlined'}
+                        icon={filters.savedSearchId === savedSearch.id ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+                      />
+                    ))}
+                  </Box>
+                </Grid>
+              )}
+              
+              {/* Recent Searches */}
+              {recentSearches.length > 0 && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Recent Searches
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {recentSearches.map(recentSearch => (
+                      <Chip
+                        key={recentSearch.id}
+                        label={
+                          recentSearch.filters.searchText || 
+                          format(new Date(recentSearch.timestamp), 'MMM d, h:mm a')
+                        }
+                        onClick={() => setFilters(recentSearch.filters)}
+                        icon={<HistoryIcon />}
+                        variant="outlined"
+                      />
+                    ))}
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+            
+            {/* Action buttons */}
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                startIcon={<ClearIcon />}
+                onClick={handleClearFilters}
+              >
+                Clear Filters
+              </Button>
+              
+              <Box>
+                <Button
+                  variant="outlined"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSaveSearch}
+                  sx={{ mr: 1 }}
+                >
+                  Save Search
+                </Button>
                 
                 <Button
                   variant="contained"
-                  onClick={handleSaveFilter}
-                  disabled={!filterName.trim()}
+                  color="primary"
+                  startIcon={<SearchIcon />}
+                  onClick={executeSearch}
                 >
-                  Save
-                </Button>
-                
-                <Button
-                  variant="text"
-                  onClick={() => setSaveFilterDialogOpen(false)}
-                >
-                  Cancel
+                  Search
                 </Button>
               </Box>
-            </Paper>
-          )}
-        </Box>
+            </Box>
+          </Box>
+        </LocalizationProvider>
       </Collapse>
     </Paper>
   );

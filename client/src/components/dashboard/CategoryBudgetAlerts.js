@@ -1,245 +1,278 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
-  Paper,
-  Typography,
   Box,
+  Typography,
+  Paper,
   Alert,
   AlertTitle,
-  LinearProgress,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
   Collapse,
   IconButton,
-  Chip
+  LinearProgress,
+  Divider,
+  Chip,
+  Button,
+  List,
+  ListItem,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import CloseIcon from '@mui/icons-material/Close';
 import WarningIcon from '@mui/icons-material/Warning';
 import ErrorIcon from '@mui/icons-material/Error';
 import InfoIcon from '@mui/icons-material/Info';
-import { green, orange, red } from '@mui/material/colors';
-import { getCategories } from '../../redux/actions/categoryActions';
-import { getTransactions } from '../../redux/actions/transactionActions';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import { useNavigate } from 'react-router-dom';
 
 /**
- * CategoryBudgetAlerts component
- * 
- * Displays alerts for categories that are approaching or exceeding their budget limits
+ * Component to display alerts when categories are nearing or exceeding their budget limits
  */
 const CategoryBudgetAlerts = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dispatch = useDispatch();
-  const { categories } = useSelector(state => state.categories);
-  const { transactions } = useSelector(state => state.transactions);
+  const navigate = useNavigate();
   
+  // Get categories and transactions from Redux store
+  const { categories } = useSelector(state => state.category);
+  const { transactions } = useSelector(state => state.transaction);
+  
+  // Local state
   const [expanded, setExpanded] = useState(true);
-  const [alertData, setAlertData] = useState([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState([]);
   
-  // Alert thresholds
-  const WARNING_THRESHOLD = 0.75; // 75% of budget
-  const CRITICAL_THRESHOLD = 1.0; // 100% of budget
+  // Process categories and transactions to find budget alerts
+  const budgetAlerts = calculateBudgetAlerts(categories, transactions, dismissedAlerts);
   
-  // Toggle expanded state
-  const toggleExpanded = () => {
-    setExpanded(!expanded);
-  };
-  
-  // Get month range for current month
-  const getCurrentMonthRange = () => {
-    const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  // Calculate the percentage of budget used and determine alert status
+  function calculateBudgetAlerts(categories, transactions, dismissedAlerts) {
+    if (!categories || !transactions) return [];
     
-    return {
-      start: startDate.toISOString().split('T')[0],
-      end: endDate.toISOString().split('T')[0]
-    };
-  };
-  
-  // Calculate current spending for each category
-  useEffect(() => {
-    if (!categories || !transactions) return;
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
     
-    // Get the current month's date range
-    const { start, end } = getCurrentMonthRange();
-    
-    // Filter transactions to current month and expenses only
-    const currentMonthExpenses = transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date);
-      const startDate = new Date(start);
-      const endDate = new Date(end);
-      
-      return (
-        transaction.type === 'expense' &&
-        transactionDate >= startDate &&
-        transactionDate <= endDate
-      );
+    // Filter transactions for current month
+    const currentMonthTransactions = transactions.filter(transaction => {
+      const txDate = new Date(transaction.date);
+      return txDate.getMonth() === currentMonth && 
+             txDate.getFullYear() === currentYear &&
+             transaction.type === 'expense';
     });
     
-    // Calculate current spending for each category
-    const categorySpendings = categories.reduce((acc, category) => {
-      if (!category.budget || category.budget <= 0) return acc;
-      
-      const spending = currentMonthExpenses
-        .filter(transaction => transaction.category && transaction.category._id === category._id)
-        .reduce((sum, transaction) => sum + transaction.amount, 0);
-      
-      const percentage = (spending / category.budget);
-      
-      // Only include categories with budgets that have spending
-      if (percentage > 0) {
-        let severity = 'info';
+    // Calculate spending by category
+    const spendingByCategory = {};
+    currentMonthTransactions.forEach(transaction => {
+      if (transaction.category) {
+        const categoryId = transaction.category._id || transaction.category;
+        spendingByCategory[categoryId] = (spendingByCategory[categoryId] || 0) + transaction.amount;
+      }
+    });
+    
+    // Generate alerts for categories approaching or exceeding budget
+    return categories
+      .filter(category => category.budget && category.budget > 0)
+      .map(category => {
+        const spent = spendingByCategory[category._id] || 0;
+        const budgetLimit = category.budget;
+        const percentUsed = (spent / budgetLimit) * 100;
         
-        if (percentage >= CRITICAL_THRESHOLD) {
+        // Determine alert severity
+        let severity = 'success';
+        if (percentUsed >= 100) {
           severity = 'error';
-        } else if (percentage >= WARNING_THRESHOLD) {
+        } else if (percentUsed >= 85) {
           severity = 'warning';
+        } else if (percentUsed >= 70) {
+          severity = 'info';
+        } else {
+          return null; // Don't create alerts for categories under 70% used
         }
         
-        acc.push({
-          category,
-          spending,
-          budget: category.budget,
-          percentage,
-          severity,
-          remaining: Math.max(0, category.budget - spending)
-        });
-      }
-      
-      return acc;
-    }, []);
-    
-    // Sort by severity and then by percentage
-    const sortedAlerts = categorySpendings.sort((a, b) => {
-      if (a.severity === 'error' && b.severity !== 'error') return -1;
-      if (a.severity !== 'error' && b.severity === 'error') return 1;
-      if (a.severity === 'warning' && b.severity === 'info') return -1;
-      if (a.severity === 'info' && b.severity === 'warning') return 1;
-      return b.percentage - a.percentage;
-    });
-    
-    setAlertData(sortedAlerts);
-  }, [categories, transactions]);
+        // Skip dismissed alerts
+        if (dismissedAlerts.includes(category._id)) {
+          return null;
+        }
+        
+        return {
+          id: category._id,
+          category: category,
+          spent: spent,
+          budget: budgetLimit,
+          percentUsed: percentUsed,
+          severity: severity
+        };
+      })
+      .filter(alert => alert !== null) // Remove null entries
+      .sort((a, b) => b.percentUsed - a.percentUsed); // Sort by percent used (highest first)
+  }
   
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+  const handleDismiss = (alertId) => {
+    setDismissedAlerts([...dismissedAlerts, alertId]);
   };
   
-  // Get severity color
-  const getSeverityColor = (severity) => {
-    switch(severity) {
-      case 'error': return red[500];
-      case 'warning': return orange[500];
-      case 'info': return green[500];
-      default: return null;
-    }
+  const handleNavigateToCategory = (categoryId) => {
+    navigate(`/budget?category=${categoryId}`);
   };
   
-  // Get severity icon
-  const getSeverityIcon = (severity) => {
-    switch(severity) {
-      case 'error': return <ErrorIcon color="error" />;
-      case 'warning': return <WarningIcon color="warning" />;
-      case 'info': return <InfoIcon color="success" />;
-      default: return null;
-    }
-  };
-  
-  // If there are no alerts, show nothing
-  if (alertData.length === 0) {
+  // If no alerts, return null or a collapsed component
+  if (budgetAlerts.length === 0) {
     return null;
   }
   
   return (
-    <Paper sx={{ mb: 3, overflow: 'hidden' }}>
-      <Box 
-        sx={{ 
-          p: 2, 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between' 
-        }}
+    <Paper 
+      elevation={3} 
+      sx={{ 
+        mb: 3, 
+        overflow: 'hidden',
+        borderRadius: 2,
+        border: `1px solid ${theme.palette.divider}`,
+        borderLeft: budgetAlerts.some(alert => alert.severity === 'error') 
+          ? `4px solid ${theme.palette.error.main}` 
+          : budgetAlerts.some(alert => alert.severity === 'warning')
+            ? `4px solid ${theme.palette.warning.main}`
+            : `4px solid ${theme.palette.info.main}`
+      }}
+    >
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        p: 2,
+        cursor: 'pointer',
+        bgcolor: theme.palette.background.default
+      }}
+      onClick={() => setExpanded(!expanded)}
       >
-        <Typography variant="h6">
-          Budget Alerts
-        </Typography>
-        <IconButton onClick={toggleExpanded} size="small">
-          {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {budgetAlerts.some(alert => alert.severity === 'error') ? (
+            <ErrorIcon color="error" sx={{ mr: 1 }} />
+          ) : budgetAlerts.some(alert => alert.severity === 'warning') ? (
+            <WarningIcon color="warning" sx={{ mr: 1 }} />
+          ) : (
+            <InfoIcon color="info" sx={{ mr: 1 }} />
+          )}
+          <Typography variant="h6" component="div">
+            Budget Alerts ({budgetAlerts.length})
+          </Typography>
+        </Box>
+        
+        <IconButton
+          size="small"
+          aria-label={expanded ? 'collapse' : 'expand'}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }}
+        >
+          {expanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
         </IconButton>
       </Box>
       
-      <Divider />
-      
       <Collapse in={expanded}>
+        <Divider />
         <List disablePadding>
-          {alertData.map((alert, index) => (
+          {budgetAlerts.map((alert) => (
             <ListItem 
-              key={alert.category._id}
-              divider={index < alertData.length - 1}
-              sx={{
-                borderLeft: 4,
-                borderLeftColor: getSeverityColor(alert.severity),
-                bgcolor: alert.severity === 'error' ? red[50] : 'inherit'
+              key={alert.id}
+              divider
+              sx={{ 
+                p: 0,
+                '&:hover': {
+                  bgcolor: theme.palette.action.hover
+                }
               }}
             >
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    {getSeverityIcon(alert.severity)}
-                    <Typography variant="subtitle1" sx={{ ml: 1 }}>
-                      {alert.category.name}
-                    </Typography>
-                    <Box sx={{ flexGrow: 1 }} />
+              <Alert
+                severity={alert.severity}
+                sx={{ 
+                  width: '100%',
+                  borderRadius: 0,
+                  '& .MuiAlert-message': {
+                    width: '100%'
+                  }
+                }}
+                action={
+                  <IconButton
+                    aria-label="dismiss"
+                    color="inherit"
+                    size="small"
+                    onClick={() => handleDismiss(alert.id)}
+                  >
+                    <CloseIcon fontSize="inherit" />
+                  </IconButton>
+                }
+              >
+                <Box sx={{ width: '100%' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <AlertTitle sx={{ m: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        {alert.category.icon ? (
+                          <span className="material-icons" style={{ marginRight: '8px', fontSize: '1.2rem' }}>
+                            {alert.category.icon}
+                          </span>
+                        ) : (
+                          <ShoppingCartIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+                        )}
+                        {alert.category.name}
+                      </Box>
+                    </AlertTitle>
                     <Chip 
-                      label={`${(alert.percentage * 100).toFixed(0)}%`}
-                      color={alert.severity === 'error' ? 'error' : alert.severity === 'warning' ? 'warning' : 'success'}
+                      label={`${Math.round(alert.percentUsed)}% Used`} 
+                      color={alert.severity}
                       size="small"
-                      sx={{ ml: 1 }}
+                      variant="outlined"
                     />
                   </Box>
-                }
-                secondary={
-                  <Box>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={Math.min(100, alert.percentage * 100)} 
-                      color={alert.severity === 'error' ? 'error' : alert.severity === 'warning' ? 'warning' : 'success'}
-                      sx={{ height: 8, borderRadius: 4, mb: 1 }}
-                    />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                      <Typography variant="caption">
-                        Spent: {formatCurrency(alert.spending)}
-                      </Typography>
-                      <Typography variant="caption">
-                        Budget: {formatCurrency(alert.budget)}
-                      </Typography>
-                    </Box>
+                  
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={Math.min(alert.percentUsed, 100)} 
+                    color={alert.severity}
+                    sx={{ height: 8, borderRadius: 4, mb: 1 }}
+                  />
+                  
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    flexWrap: isMobile ? 'wrap' : 'nowrap'
+                  }}>
+                    <Typography variant="body2">
+                      Spent <strong>${alert.spent.toFixed(2)}</strong> of <strong>${alert.budget.toFixed(2)}</strong>
+                      {alert.percentUsed >= 100 
+                        ? ' - Budget exceeded!' 
+                        : ` - ${(alert.budget - alert.spent).toFixed(2)} remaining`}
+                    </Typography>
+                    
+                    <Button
+                      size="small"
+                      endIcon={<KeyboardArrowRightIcon />}
+                      onClick={() => handleNavigateToCategory(alert.id)}
+                      sx={{ mt: isMobile ? 1 : 0, ml: isMobile ? 0 : 2 }}
+                    >
+                      View Details
+                    </Button>
                   </Box>
-                }
-              />
+                </Box>
+              </Alert>
             </ListItem>
           ))}
         </List>
-        
-        {alertData.some(alert => alert.severity === 'error') && (
-          <Alert severity="error" sx={{ m: 2 }}>
-            <AlertTitle>Budget Exceeded</AlertTitle>
-            You've exceeded your budget in one or more categories. Consider adjusting your spending or your budget.
-          </Alert>
-        )}
-        
-        {!alertData.some(alert => alert.severity === 'error') && 
-         alertData.some(alert => alert.severity === 'warning') && (
-          <Alert severity="warning" sx={{ m: 2 }}>
-            <AlertTitle>Approaching Limits</AlertTitle>
-            You're approaching your budget limits in some categories. Monitor your spending carefully.
-          </Alert>
+
+        {budgetAlerts.length > 0 && (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Button 
+              variant="outlined" 
+              size="small"
+              onClick={() => navigate('/budget')}
+            >
+              Manage All Budgets
+            </Button>
+          </Box>
         )}
       </Collapse>
     </Paper>
