@@ -68,17 +68,37 @@ const Login = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include' // Include cookies in the request
       });
       
-      const data = await response.json();
-      console.log('Login response:', data);
+      console.log('Response status:', response.status);
       
-      if (data.success) {
+      let data;
+      try {
+        data = await response.json();
+        console.log('Login response details:', data);
+      } catch (e) {
+        console.error('Error parsing JSON response:', e);
+        setError(`Could not parse server response: ${response.status}`);
+        return;
+      }
+      
+      if (response.ok && data.success) {
+        console.log('Login successful, storing token and user data');
         // Store token manually
         localStorage.setItem('token', data.token);
+        
+        // Store basic user info if available
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
+        
+        // Redirect to dashboard
+        console.log('Redirecting to dashboard');
         navigate('/');
       } else {
-        setError(data.message || 'Login failed');
+        console.log('Login failed:', data.message || response.statusText);
+        setError(data.message || `Login failed: ${response.statusText}`);
       }
     } catch (err) {
       console.error('Login error:', err);

@@ -9,7 +9,8 @@ const User = require('../models/User.model');
  */
 exports.protect = async (req, res, next) => {
   // DEMO MODE CHECK - Accept any token in demo mode
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.USE_DEMO_MODE === 'true') {
+    console.log('Auth middleware: Using demo mode authentication');
     let token;
 
     // Check if token exists in headers

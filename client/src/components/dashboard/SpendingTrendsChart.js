@@ -39,52 +39,53 @@ const SpendingTrendsChart = () => {
   const [period, setPeriod] = useState('6months');
   const [view, setView] = useState('both'); // 'income', 'expenses', or 'both'
   
-  useEffect(() => {
-    const fetchData = async (isRefresh = false) => {
-      isRefresh ? setRefreshing(true) : setLoading(true);
-      try {
-        let params = {};
-        
-        // Set date range based on selected period
-        const now = new Date();
-        if (period === '3months') {
-          const threeMonthsAgo = new Date();
-          threeMonthsAgo.setMonth(now.getMonth() - 2);
-          threeMonthsAgo.setDate(1);
-          params.startDate = threeMonthsAgo.toISOString().split('T')[0];
-        } else if (period === '6months') {
-          const sixMonthsAgo = new Date();
-          sixMonthsAgo.setMonth(now.getMonth() - 5);
-          sixMonthsAgo.setDate(1);
-          params.startDate = sixMonthsAgo.toISOString().split('T')[0];
-        } else if (period === '12months') {
-          const yearAgo = new Date();
-          yearAgo.setFullYear(now.getFullYear() - 1);
-          yearAgo.setMonth(now.getMonth() + 1);
-          yearAgo.setDate(1);
-          params.startDate = yearAgo.toISOString().split('T')[0];
-        }
-        
-        params.endDate = now.toISOString().split('T')[0];
-        
-        const response = await dispatch(getSpendingTrends(params));
-        
-        if (response && response.trends) {
-          setData(response.trends);
-        } else {
-          setData([]);
-        }
-        
-        setLoading(false);
-        setRefreshing(false);
-        setError(null);
-      } catch (err) {
-        setError(err.message || 'Failed to load spending trends');
-        setLoading(false);
-        setRefreshing(false);
+  // Define fetchData function outside useEffect so it can be used by handleRefresh
+  const fetchData = async (isRefresh = false) => {
+    isRefresh ? setRefreshing(true) : setLoading(true);
+    try {
+      let params = {};
+      
+      // Set date range based on selected period
+      const now = new Date();
+      if (period === '3months') {
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(now.getMonth() - 2);
+        threeMonthsAgo.setDate(1);
+        params.startDate = threeMonthsAgo.toISOString().split('T')[0];
+      } else if (period === '6months') {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(now.getMonth() - 5);
+        sixMonthsAgo.setDate(1);
+        params.startDate = sixMonthsAgo.toISOString().split('T')[0];
+      } else if (period === '12months') {
+        const yearAgo = new Date();
+        yearAgo.setFullYear(now.getFullYear() - 1);
+        yearAgo.setMonth(now.getMonth() + 1);
+        yearAgo.setDate(1);
+        params.startDate = yearAgo.toISOString().split('T')[0];
       }
-    };
-    
+      
+      params.endDate = now.toISOString().split('T')[0];
+      
+      const response = await dispatch(getSpendingTrends(params));
+      
+      if (response && response.trends) {
+        setData(response.trends);
+      } else {
+        setData([]);
+      }
+      
+      setLoading(false);
+      setRefreshing(false);
+      setError(null);
+    } catch (err) {
+      setError(err.message || 'Failed to load spending trends');
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+  
+  useEffect(() => {
     fetchData();
   }, [dispatch, period]);
   

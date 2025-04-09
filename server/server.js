@@ -4,10 +4,14 @@ const connectDB = require('./config/db');
 // Load environment variables
 require('dotenv').config();
 
-// Define port
-// Skip database connection for testing in remote environment
-console.log('Note: Running in demo mode without database connection');
-console.log('API endpoints will return mock data for testing purposes');
+// Connect to database
+if (process.env.USE_DEMO_MODE === 'true') {
+  console.log('Note: Running in demo mode without database connection');
+  console.log('API endpoints will return mock data for testing purposes');
+} else {
+  connectDB();
+  console.log('Connecting to MongoDB database');
+}
 
 // Define port
 const PORT = process.env.PORT || 5000;

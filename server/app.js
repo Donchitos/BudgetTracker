@@ -14,7 +14,8 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000'
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true // Allow credentials (cookies)
 }));
 
 // Logging in development mode
@@ -24,72 +25,85 @@ if (process.env.NODE_ENV === 'development') {
 
 // Define routes
 app.get('/api', (req, res) => {
-  res.json({ message: 'Budget Tracker API is running in demo mode' });
-});
-
-// Demo route to simulate authentication
-app.post('/api/auth/login', (req, res) => {
-  // For demo mode, accept any credentials
-  console.log('Login attempt with:', req.body.email);
-  
-  res.json({
-    success: true,
-    token: 'demo-token-12345',
-    user: {
-      _id: '1234567890',
-      name: 'Demo User',
-      email: req.body.email || 'demo@example.com'
-    }
-  });
-});
-
-app.post('/api/auth/register', (req, res) => {
-  // For demo mode, accept any registration
-  console.log('Registration attempt with:', req.body.email);
-  
-  res.json({
-    success: true,
-    token: 'demo-token-12345',
-    user: {
-      _id: '1234567890',
-      name: req.body.name || 'Demo User',
-      email: req.body.email || 'demo@example.com'
-    }
-  });
-});
-app.get('/api/auth/me', (req, res) => {
-  // In demo mode, always authenticate with any token
-  const authHeader = req.headers.authorization;
-  
-  // If no token is provided at all, return 401
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'No token provided' });
+  if (process.env.USE_DEMO_MODE === 'true') {
+    res.json({ message: 'Budget Tracker API is running in demo mode' });
+  } else {
+    res.json({ message: 'Budget Tracker API is running with MongoDB' });
   }
-  
-  // Any token is valid in demo mode
-  res.json({
-    success: true,
-    data: {
-      _id: '1234567890',
-      name: 'Demo User',
-      email: 'demo@example.com'
-    }
-  });
 });
+
+// Demo authentication routes - only used when USE_DEMO_MODE is true
+if (process.env.USE_DEMO_MODE === 'true') {
+  // Demo route to simulate authentication
+  app.post('/api/auth/login', (req, res) => {
+    // For demo mode, accept any credentials
+    console.log('Login attempt with:', req.body.email);
+    
+    res.json({
+      success: true,
+      token: 'demo-token-12345',
+      user: {
+        _id: '1234567890',
+        name: 'Demo User',
+        email: req.body.email || 'demo@example.com'
+      }
+    });
+  });
+
+  app.post('/api/auth/register', (req, res) => {
+    // For demo mode, accept any registration
+    console.log('Registration attempt with:', req.body.email);
+    
+    res.json({
+      success: true,
+      token: 'demo-token-12345',
+      user: {
+        _id: '1234567890',
+        name: req.body.name || 'Demo User',
+        email: req.body.email || 'demo@example.com'
+      }
+    });
+  });
+
+  app.get('/api/auth/me', (req, res) => {
+    // In demo mode, always authenticate with any token
+    const authHeader = req.headers.authorization;
+    
+    // If no token is provided at all, return 401
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+  
+    // Any token is valid in demo mode
+    res.json({
+      success: true,
+      data: {
+        _id: '1234567890',
+        name: 'Demo User',
+        email: 'demo@example.com'
+      }
+    });
+  });
+}
 
 // Demo route to simulate categories
 app.get('/api/categories', (req, res) => {
-  res.json({
-    success: true,
-    count: 5,
-    data: [
-      { _id: 'cat1', name: 'Food', color: '#FF5733', icon: 'FastfoodIcon', budget: 500 },
-      { _id: 'cat2', name: 'Transportation', color: '#337DFF', icon: 'DirectionsCarIcon', budget: 300 },
-      { _id: 'cat3', name: 'Housing', color: '#33FF57', icon: 'HomeIcon', budget: 1000 },
-      { _id: 'cat4', name: 'Entertainment', color: '#F033FF', icon: 'MovieIcon', budget: 200 },
-      { _id: 'cat5', name: 'Utilities', color: '#FFFF33', icon: 'BoltIcon', budget: 250 }
-    ]
-  });
+  if (process.env.USE_DEMO_MODE === 'true') {
+    res.json({
+      success: true,
+      count: 5,
+      data: [
+        { _id: 'cat1', name: 'Food', color: '#FF5733', icon: 'FastfoodIcon', budget: 500 },
+        { _id: 'cat2', name: 'Transportation', color: '#337DFF', icon: 'DirectionsCarIcon', budget: 300 },
+        { _id: 'cat3', name: 'Housing', color: '#33FF57', icon: 'HomeIcon', budget: 1000 },
+        { _id: 'cat4', name: 'Entertainment', color: '#F033FF', icon: 'MovieIcon', budget: 200 },
+        { _id: 'cat5', name: 'Utilities', color: '#FFFF33', icon: 'BoltIcon', budget: 250 }
+      ]
+    });
+  } else {
+    // In real mode, pass through to the actual route handler
+    require('./routes/category.routes')(req, res);
+  }
 });
 
 // Demo route to simulate transactions
@@ -151,8 +165,16 @@ app.get('/api/dashboard/expense-breakdown', (req, res) => {
   });
 });
 
-// Routes - COMMENTED OUT THE DIRECT AUTH ROUTES TO PREVENT CONFLICTS WITH DEMO ROUTES
-// app.use('/api/auth', require('./routes/auth.routes'));
+// Routes
+if (process.env.USE_DEMO_MODE !== 'true') {
+  // Use the real auth routes when not in demo mode
+  console.log('Using real authentication with MongoDB');
+  app.use('/api/auth', require('./routes/auth.routes'));
+} else {
+  console.log('Using demo authentication (mock data)');
+}
+
+// These routes are used in both demo and real mode
 app.use('/api/categories', require('./routes/category.routes'));
 app.use('/api/transactions', require('./routes/transaction.routes'));
 app.use('/api/bills', require('./routes/bill.routes'));
