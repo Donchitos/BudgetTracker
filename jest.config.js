@@ -1,25 +1,38 @@
 module.exports = {
-  testEnvironment: 'jsdom',
+  roots: ['<rootDir>/client/src'],
+  testMatch: [
+    "**/__tests__/**/*.+(ts|tsx|js)",
+    "**/?(*.)+(spec|test).+(ts|tsx|js)"
+  ],
+  transform: {
+    "^.+\\.(ts|tsx)$": "ts-jest",
+    "^.+\\.(js|jsx)$": ["babel-jest", { presets: ["@babel/preset-env", "@babel/preset-react"] }]
+  },
   moduleNameMapper: {
+    // Handle CSS imports (with CSS modules)
+    '\\.module\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    // Handle CSS imports (without CSS modules)
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    '\\.(gif|ttf|eot|svg|png)$': '<rootDir>/__mocks__/fileMock.js',
+    // Handle image imports
+    '\\.(jpg|jpeg|png|gif|svg)$': '<rootDir>/client/src/__mocks__/fileMock.js',
+    // Handle module aliases
+    '^@/(.*)$': '<rootDir>/client/src/$1'
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testPathIgnorePatterns: ['/node_modules/', '/build/'],
-  transform: {
-    '^.+\\.(js|jsx)$': 'babel-jest',
-  },
+  testEnvironment: 'jsdom',
   collectCoverageFrom: [
-    'client/src/**/*.{js,jsx}',
+    'client/src/**/*.{js,jsx,ts,tsx}',
+    '!client/src/**/*.d.ts',
     '!client/src/index.js',
-    '!client/src/serviceWorker.js',
+    '!client/src/serviceWorker.js'
   ],
   coverageThreshold: {
     global: {
-      statements: 70,
       branches: 70,
       functions: 70,
       lines: 70,
-    },
+      statements: 70
+    }
   },
+  coverageReporters: ['text', 'lcov', 'html']
 };

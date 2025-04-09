@@ -1,6 +1,5 @@
 // ***********************************************
 // This file defines custom commands for Cypress
-// https://on.cypress.io/custom-commands
 // ***********************************************
 
 // -- This is a parent command --
@@ -12,15 +11,6 @@ Cypress.Commands.add('login', (email, password) => {
   cy.url().should('include', '/dashboard');
 });
 
-// -- This is a child command --
-// Cypress.Commands.add('drag', { prevSubject: 'element'}, (subject, options) => { ... })
-
-// -- This is a dual command --
-// Cypress.Commands.add('dismiss', { prevSubject: 'optional'}, (subject, options) => { ... })
-
-// -- This will overwrite an existing command --
-// Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-
 // Add command to create a transaction
 Cypress.Commands.add('addTransaction', (description, amount, type, category) => {
   cy.get('[data-testid="nav-transactions"]').click();
@@ -29,7 +19,7 @@ Cypress.Commands.add('addTransaction', (description, amount, type, category) => 
   cy.get('[data-testid="transaction-amount"]').type(amount.toString());
   cy.get(`[data-testid="transaction-type-${type}"]`).click();
   cy.get('[data-testid="transaction-category"]').click();
-  cy.get(`[data-testid="category-option-${category.toLowerCase()}"]`).click();
+  cy.get(`[data-testid="category-option-${category}"]`).click();
   cy.get('[data-testid="save-transaction-button"]').click();
 });
 

@@ -1,18 +1,37 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "lib": ["es5", "dom"],
-    "types": ["cypress", "node"],
-    "esModuleInterop": true,
+    "lib": ["es5", "dom", "dom.iterable", "esnext"],
+    "allowJs": true,
     "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitAny": false,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
     "baseUrl": ".",
-    "jsx": "react-jsx"
+    "paths": {
+      "@/*": ["client/src/*"]
+    },
+    "typeRoots": [
+      "./node_modules/@types",
+      "./cypress/types"
+    ]
   },
   "include": [
-    "./cypress/**/*.ts",
-    "./cypress/**/*.js"
+    "client/src/**/*.ts",
+    "client/src/**/*.tsx",
+    "client/src/**/*.js",
+    "client/src/**/*.jsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "cypress"
   ]
 }
