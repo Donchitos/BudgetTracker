@@ -17,19 +17,29 @@ export const loadUser = () => async (dispatch) => {
   try {
     // Only attempt to load user if there's a token
     if (!authService.isAuthenticated()) {
+      console.log('loadUser: No token found, aborting user load');
       return dispatch({ type: AUTH_ERROR });
     }
 
+    console.log('loadUser: Attempting to fetch current user data');
     const res = await authService.getCurrentUser();
     
-    dispatch({
-      type: USER_LOADED,
-      payload: res.data
-    });
+    if (res && res.data) {
+      console.log('loadUser: Successfully loaded user data');
+      dispatch({
+        type: USER_LOADED,
+        payload: res.data
+      });
+    } else {
+      console.warn('loadUser: Got response but no user data');
+      dispatch({ type: AUTH_ERROR });
+    }
   } catch (err) {
-    dispatch({
-      type: AUTH_ERROR
-    });
+    console.error('loadUser error:', err.message || 'Failed to load user');
+    // Don't clear the token on network errors, only on actual auth errors
+    if (err.response && err.response.status === 401) {
+      dispatch({ type: AUTH_ERROR });
+    }
   }
 };
 
@@ -41,13 +51,13 @@ export const register = (formData) => async (dispatch) => {
   try {
     const res = await authService.register(formData);
     
+    // Only dispatch registration success but don't load user
+    // This way the user will be redirected to login and needs to manually login
     dispatch({
       type: REGISTER_SUCCESS,
       payload: res
     });
     
-    // Load user data after successful registration
-    dispatch(loadUser());
   } catch (err) {
     const errorMessage = err.response?.data?.message || 'Registration failed';
     

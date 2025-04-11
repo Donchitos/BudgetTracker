@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { demoLogin } from '../../redux/actions/authActions';
-import { getAuthUrl } from '../../utils/apiConfig';
+import { login, demoLogin } from '../../redux/actions/authActions';
 import {
   Avatar,
   Button,
@@ -15,9 +14,13 @@ import {
   Typography,
   Container,
   Paper,
-  Alert
+  Alert,
+  InputAdornment,
+  IconButton
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 const Login = () => {
   const dispatch = useDispatch();
@@ -30,6 +33,7 @@ const Login = () => {
     rememberMe: false
   });
   
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   
   const { email, password, rememberMe } = formData;
@@ -59,50 +63,17 @@ const Login = () => {
     }
     
     try {
-      console.log('Attempting to login with:', { email, password: '******' });
+      console.log('Attempting to login with Redux:', { email, password: '******' });
       
-      // Direct fetch to the server with dynamic URL handling for GitHub Codespaces
-      const response = await fetch(getAuthUrl('login'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include' // Include cookies in the request
-      });
+      // Use the Redux login action instead of manual fetch
+      await dispatch(login(email, password));
       
-      console.log('Response status:', response.status);
-      
-      let data;
-      try {
-        data = await response.json();
-        console.log('Login response details:', data);
-      } catch (e) {
-        console.error('Error parsing JSON response:', e);
-        setError(`Could not parse server response: ${response.status}`);
-        return;
-      }
-      
-      if (response.ok && data.success) {
-        console.log('Login successful, storing token and user data');
-        // Store token manually
-        localStorage.setItem('token', data.token);
-        
-        // Store basic user info if available
-        if (data.user) {
-          localStorage.setItem('user', JSON.stringify(data.user));
-        }
-        
-        // Redirect to dashboard
-        console.log('Redirecting to dashboard');
-        navigate('/');
-      } else {
-        console.log('Login failed:', data.message || response.statusText);
-        setError(data.message || `Login failed: ${response.statusText}`);
-      }
+      // If we get here, login was successful and Redux state is updated
+      console.log('Login successful, redirecting to dashboard');
+      navigate('/');
     } catch (err) {
       console.error('Login error:', err);
-      setError('Network error: Could not connect to the server');
+      setError(err.message || 'Login failed. Please check your credentials.');
     }
   };
   
@@ -150,11 +121,24 @@ const Login = () => {
             fullWidth
             name="password"
             label="Password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             id="password"
             autoComplete="current-password"
             value={password}
             onChange={onChange}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </IconButton>
+                </InputAdornment>
+              )
+            }}
           />
           <FormControlLabel
             control={

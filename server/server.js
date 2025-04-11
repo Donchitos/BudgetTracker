@@ -1,17 +1,17 @@
 const app = require('./app');
-const connectDB = require('./config/db');
+const { connectDB, closeDB } = require('./config/db');
 
 // Load environment variables
 require('dotenv').config();
+// Set a flag to use the MongoDB Memory Server for testing
+process.env.USE_MEMORY_DB = 'true';
 
-// Connect to database
-if (process.env.USE_DEMO_MODE === 'true') {
-  console.log('Note: Running in demo mode without database connection');
-  console.log('API endpoints will return mock data for testing purposes');
-} else {
-  connectDB();
-  console.log('Connecting to MongoDB database');
-}
+// Connect to database (will use MongoDB Memory Server if connection fails)
+connectDB().then(connected => {
+  if (connected) {
+    console.log('Database connection established');
+  }
+});
 
 // Define port
 const PORT = process.env.PORT || 5000;
@@ -24,6 +24,19 @@ const server = app.listen(PORT, () => {
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
   console.log(`Error: ${err.message}`);
-  // Close server & exit process
-  server.close(() => process.exit(1));
+  // Close database connection and server before exiting
+  closeDB().then(() => {
+    server.close(() => process.exit(1));
+  });
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully');
+  closeDB().then(() => {
+    server.close(() => {
+      console.log('Process terminated');
+      process.exit(0);
+    });
+  });
 });

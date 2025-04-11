@@ -26,6 +26,8 @@ import FinancialPlanning from './pages/FinancialPlanning';
 import Forecast from './pages/Forecast';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import NotFound from './pages/NotFound';
 
 const App = () => {
@@ -33,7 +35,13 @@ const App = () => {
 
   // Load user when app mounts
   useEffect(() => {
-    dispatch(loadUser());
+    // Only attempt to load user data if there's a token
+    if (localStorage.getItem('token')) {
+      console.log('App.js: Found token, loading user data');
+      dispatch(loadUser());
+    } else {
+      console.log('App.js: No token found, skipping loadUser');
+    }
   }, [dispatch]);
 
   return (
@@ -42,6 +50,8 @@ const App = () => {
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
         <Route path="*" element={<NotFound />} />
         
         {/* Protected routes - will only be accessible if authenticated */}

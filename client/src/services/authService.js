@@ -17,9 +17,8 @@ const authService = {
     try {
       const response = await api.post('/auth/register', userData);
       console.log('authService - Registration response:', response.data);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-      }
+      // Don't store token in localStorage directly after registration
+      // Let users explicitly log in after registering
       return response.data;
     } catch (error) {
       console.error('authService - Registration error:', error);
@@ -34,6 +33,7 @@ const authService = {
    * @returns {Promise} - Promise with user data and token
    */
   login: async (email, password) => {
+    console.log('authService - Sending login request to:', '/auth/login');
     const response = await api.post('/auth/login', { email, password });
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
@@ -56,6 +56,7 @@ const authService = {
    * @returns {Promise} - Promise with user data
    */
   getCurrentUser: async () => {
+    console.log('authService - Sending get user request to:', '/auth/me');
     const response = await api.get('/auth/me');
     return response.data;
   },

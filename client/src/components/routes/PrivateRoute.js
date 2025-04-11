@@ -9,7 +9,7 @@ import { CircularProgress, Box } from '@mui/material';
  * If not, it redirects to the login page
  */
 const PrivateRoute = () => {
-  const { isAuthenticated, loading } = useSelector(state => state.auth);
+  const { isAuthenticated, loading, token } = useSelector(state => state.auth);
 
   // Show loading spinner while checking authentication status
   if (loading) {
@@ -20,8 +20,14 @@ const PrivateRoute = () => {
     );
   }
 
-  // If not authenticated, redirect to login
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" />;
+  // Check if we have a token AND we're not explicitly set to not authenticated
+  // This prevents redirect loops during initialization
+  const hasValidSession = token && isAuthenticated !== false;
+  
+  console.log('PrivateRoute - Auth state:', { isAuthenticated, hasToken: !!token, hasValidSession });
+  
+  // If we have a token, allow access even if isAuthenticated isn't fully resolved yet
+  return hasValidSession ? <Outlet /> : <Navigate to="/login" />;
 };
 
 export default PrivateRoute;

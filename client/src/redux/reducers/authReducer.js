@@ -28,6 +28,15 @@ export default function authReducer(state = initialState, action) {
         user: payload
       };
     case REGISTER_SUCCESS:
+      // For registration, store token but don't authenticate yet
+      localStorage.setItem('token', payload.token);
+      return {
+        ...state,
+        ...payload,
+        isAuthenticated: false, // Not authenticated until they login
+        loading: false,
+        error: null
+      };
     case LOGIN_SUCCESS:
       localStorage.setItem('token', payload.token);
       return {
