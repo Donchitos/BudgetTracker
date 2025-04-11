@@ -61,28 +61,28 @@ import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 
 // Group navigation items into logical sections with icons for better usability
 const mainNavItems = [
-  { title: 'Transactions', path: '/transactions', priority: 'high', icon: <PaymentsIcon fontSize="small" /> },
-  { title: 'Categories', path: '/categories', priority: 'high', icon: <CategoryIcon fontSize="small" /> },
-  { title: 'Budget', path: '/budget', priority: 'high', icon: <AccountBalanceIcon fontSize="small" /> },
-  { title: 'Bills', path: '/bills', priority: 'high', icon: <RequestPageIcon fontSize="small" /> },
-  { title: 'Savings', path: '/savings', priority: 'high', icon: <SavingsIcon fontSize="small" /> }
+  { title: 'Transactions', path: '/dashboard/transactions', priority: 'high', icon: <PaymentsIcon fontSize="small" /> },
+  { title: 'Categories', path: '/dashboard/categories', priority: 'high', icon: <CategoryIcon fontSize="small" /> },
+  { title: 'Budget', path: '/dashboard/budget', priority: 'high', icon: <AccountBalanceIcon fontSize="small" /> },
+  { title: 'Bills', path: '/dashboard/bills', priority: 'high', icon: <RequestPageIcon fontSize="small" /> },
+  { title: 'Savings', path: '/dashboard/savings', priority: 'high', icon: <SavingsIcon fontSize="small" /> }
 ];
 
 const reportingNavItems = [
-  { title: 'Reports', path: '/reports', priority: 'medium', icon: <AssessmentIcon fontSize="small" /> },
-  { title: 'Analytics', path: '/analytics', priority: 'medium', icon: <InsightsIcon fontSize="small" /> }
+  { title: 'Reports', path: '/dashboard/reports', priority: 'medium', icon: <AssessmentIcon fontSize="small" /> },
+  { title: 'Analytics', path: '/dashboard/analytics', priority: 'medium', icon: <InsightsIcon fontSize="small" /> }
 ];
 
 const planningNavItems = [
-  { title: 'Planning', path: '/financial-planning', priority: 'medium', icon: <TrendingUpIcon fontSize="small" /> },
-  { title: 'Forecast', path: '/forecast', priority: 'medium', icon: <TrendingUpIcon fontSize="small" /> },
-  { title: 'Recurring', path: '/recurring-transactions', priority: 'medium', icon: <RepeatIcon fontSize="small" /> }
+  { title: 'Planning', path: '/dashboard/financial-planning', priority: 'medium', icon: <TrendingUpIcon fontSize="small" /> },
+  { title: 'Forecast', path: '/dashboard/forecast', priority: 'medium', icon: <TrendingUpIcon fontSize="small" /> },
+  { title: 'Recurring', path: '/dashboard/recurring-transactions', priority: 'medium', icon: <RepeatIcon fontSize="small" /> }
 ];
 
 const utilityNavItems = [
-  { title: 'Templates', path: '/budget-templates', priority: 'low', icon: <DescriptionIcon fontSize="small" /> },
-  { title: 'Import/Export', path: '/import-export', priority: 'low', icon: <ImportExportIcon fontSize="small" /> },
-  { title: 'Settings', path: '/settings', priority: 'medium', icon: <SettingsIcon fontSize="small" /> }
+  { title: 'Templates', path: '/dashboard/budget-templates', priority: 'low', icon: <DescriptionIcon fontSize="small" /> },
+  { title: 'Import/Export', path: '/dashboard/import-export', priority: 'low', icon: <ImportExportIcon fontSize="small" /> },
+  { title: 'Settings', path: '/dashboard/settings', priority: 'medium', icon: <SettingsIcon fontSize="small" /> }
 ];
 
 // Combine all navigation items for the mobile menu
@@ -415,17 +415,18 @@ const Navbar = () => {
         background: theme.palette.primary.main,
       }}
     >
-      <Container maxWidth="lg">
-        <Toolbar disableGutters sx={{ minHeight: { xs: '56px', sm: '64px' } }}>
+      <Container maxWidth="xl">
+        <Toolbar disableGutters sx={{ minHeight: { xs: '56px', sm: '64px' }, overflowX: 'auto' }}>
           {/* Search bar for desktop */}
           <Box sx={{
-            display: { xs: 'none', md: 'flex' },
+            display: { xs: 'none', lg: 'flex' },
             mr: 2,
             position: 'relative',
-            width: 200,
+            width: 180,
+            flexShrink: 0,
             transition: 'width 0.2s ease-in-out',
             '&:focus-within': {
-              width: 280,
+              width: 250,
             }
           }}>
             <TextField
@@ -479,14 +480,14 @@ const Navbar = () => {
               Ctrl+/ for quick search
             </Typography>
           </Box>
-          
           {/* Logo for desktop */}
           <Box
             component={RouterLink}
-            to="/"
+            to={isAuthenticated ? "/dashboard" : "/"}
             sx={{
-              display: { xs: 'none', md: 'flex' },
+              display: { xs: 'none', lg: 'flex' },
               alignItems: 'center',
+              flexShrink: 0,
               textDecoration: 'none',
               color: 'inherit',
               '&:hover': { opacity: 0.9 }
@@ -501,14 +502,15 @@ const Navbar = () => {
                 fontFamily: 'monospace',
                 fontWeight: 700,
                 letterSpacing: '.2rem',
+                whiteSpace: 'nowrap'
               }}
             >
               BUDGET TRACKER
             </Typography>
           </Box>
 
-          {/* Mobile menu */}
-          <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
+          {/* Mobile menu button */}
+          <Box sx={{ flexGrow: 0, display: { xs: 'flex', lg: 'none' }, mr: 1 }}>
             <IconButton
               size="large"
               aria-label="navigation menu"
@@ -540,7 +542,7 @@ const Navbar = () => {
               open={Boolean(anchorElNav)}
               onClose={handleCloseNavMenu}
               sx={{
-                display: { xs: 'block', md: 'none' },
+                display: { xs: 'block', lg: 'none' },
                 '& .MuiPaper-root': {
                   maxHeight: '80vh',
                   width: 280,
@@ -549,39 +551,143 @@ const Navbar = () => {
                 }
               }}
             >
-              {isAuthenticated && allNavItems.map((item) => (
-                <MenuItem
-                  key={item.title}
-                  onClick={handleCloseNavMenu}
-                  component={RouterLink}
-                  to={item.path}
-                  selected={isActive(item.path)}
-                  sx={{
-                    borderRadius: 1,
-                    mx: 0.5,
-                    mb: 0.5,
-                    py: 1,
-                    backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                    }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
-                </MenuItem>
-              ))}
+              {isAuthenticated && (
+                <>
+                  {/* Group menu items by category */}
+                  <MenuItem sx={{ backgroundColor: 'rgba(25, 118, 210, 0.12)', borderRadius: '4px', mb: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
+                      Main
+                    </Typography>
+                  </MenuItem>
+                  
+                  {mainNavItems.map((item) => (
+                    <MenuItem
+                      key={item.title}
+                      onClick={handleCloseNavMenu}
+                      component={RouterLink}
+                      to={item.path}
+                      selected={isActive(item.path)}
+                      sx={{
+                        borderRadius: 1,
+                        mx: 0.5,
+                        mb: 0.5,
+                        py: 1,
+                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
+                    </MenuItem>
+                  ))}
+                  
+                  <MenuItem sx={{ backgroundColor: 'rgba(25, 118, 210, 0.12)', borderRadius: '4px', mb: 1, mt: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
+                      Reports & Analytics
+                    </Typography>
+                  </MenuItem>
+                  
+                  {reportingNavItems.map((item) => (
+                    <MenuItem
+                      key={item.title}
+                      onClick={handleCloseNavMenu}
+                      component={RouterLink}
+                      to={item.path}
+                      selected={isActive(item.path)}
+                      sx={{
+                        borderRadius: 1,
+                        mx: 0.5,
+                        mb: 0.5,
+                        py: 1,
+                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
+                    </MenuItem>
+                  ))}
+                  
+                  <MenuItem sx={{ backgroundColor: 'rgba(25, 118, 210, 0.12)', borderRadius: '4px', mb: 1, mt: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
+                      Planning
+                    </Typography>
+                  </MenuItem>
+                  
+                  {planningNavItems.map((item) => (
+                    <MenuItem
+                      key={item.title}
+                      onClick={handleCloseNavMenu}
+                      component={RouterLink}
+                      to={item.path}
+                      selected={isActive(item.path)}
+                      sx={{
+                        borderRadius: 1,
+                        mx: 0.5,
+                        mb: 0.5,
+                        py: 1,
+                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
+                    </MenuItem>
+                  ))}
+                  
+                  <MenuItem sx={{ backgroundColor: 'rgba(25, 118, 210, 0.12)', borderRadius: '4px', mb: 1, mt: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
+                      Utilities
+                    </Typography>
+                  </MenuItem>
+                  
+                  {utilityNavItems.map((item) => (
+                    <MenuItem
+                      key={item.title}
+                      onClick={handleCloseNavMenu}
+                      component={RouterLink}
+                      to={item.path}
+                      selected={isActive(item.path)}
+                      sx={{
+                        borderRadius: 1,
+                        mx: 0.5,
+                        mb: 0.5,
+                        py: 1,
+                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
+                    </MenuItem>
+                  ))}
+                </>
+              )}
             </Menu>
           </Box>
 
           {/* Logo for mobile */}
           <Box
             component={RouterLink}
-            to="/"
+            to={isAuthenticated ? "/dashboard" : "/"}
             sx={{
-              display: { xs: 'flex', md: 'none' },
+              display: { xs: 'flex', lg: 'none' },
               alignItems: 'center',
               flexGrow: 1,
               textDecoration: 'none',
@@ -593,10 +699,10 @@ const Navbar = () => {
               variant="h6"
               noWrap
               sx={{
-                display: { xs: 'flex', md: 'none' },
+                display: { xs: 'flex', lg: 'none' },
                 fontFamily: 'monospace',
                 fontWeight: 700,
-                letterSpacing: '.2rem',
+                letterSpacing: '.1rem',
               }}
             >
               BUDGET TRACKER
@@ -604,7 +710,19 @@ const Navbar = () => {
           </Box>
 
           {/* Desktop navigation - organized in sections */}
-          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, justifyContent: 'center' }}>
+          <Box sx={{ 
+            flexGrow: 1, 
+            display: { xs: 'none', lg: 'flex' }, 
+            justifyContent: 'center',
+            overflowX: 'auto',
+            '&::-webkit-scrollbar': {
+              height: '4px'
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: '4px'
+            }
+          }}>
             {isAuthenticated && (
               <>
                 {/* Main navigation items */}
@@ -787,7 +905,16 @@ const Navbar = () => {
             )}
           </Box>
 
-          {isAuthenticated ? authLinks : guestLinks}
+          <Box sx={{ 
+            flexShrink: 0, 
+            display: 'flex', 
+            position: 'relative', 
+            zIndex: 2,
+            ml: 1,
+            backgroundColor: theme.palette.primary.main 
+          }}>
+            {isAuthenticated ? authLinks : guestLinks}
+          </Box>
         </Toolbar>
       </Container>
     </AppBar>

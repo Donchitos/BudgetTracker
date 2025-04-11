@@ -17,7 +17,7 @@ const Layout = () => {
         flexGrow: 1,
         py: isMobile ? 2 : 3,
         px: isMobile ? 1 : 2,
-        mt: 8, // Add margin top to account for fixed navbar
+        mt: { xs: 14, sm: 16 }, // Significantly increased margin top to avoid navbar overlap
         mb: isMobile ? 7 : 0 // Add margin bottom on mobile for FAB
       }}>
         <Container maxWidth="lg" sx={{ px: isMobile ? 1 : 2 }}>
