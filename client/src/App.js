@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { useDispatch } from 'react-redux';
 
@@ -34,7 +34,7 @@ import NotFound from './pages/NotFound';
 const App = () => {
   const dispatch = useDispatch();
 
-  // Load user when app mounts
+  // Load user when app mounts and redirect to login if no token
   useEffect(() => {
     // Only attempt to load user data if there's a token
     if (localStorage.getItem('token')) {
@@ -49,6 +49,7 @@ const App = () => {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -57,7 +58,7 @@ const App = () => {
         
         {/* Protected routes - will only be accessible if authenticated */}
         <Route element={<PrivateRoute />}>
-          <Route path="/" element={<Layout />}>
+          <Route path="/dashboard" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="transactions" element={<Transactions />} />
             <Route path="categories" element={<Categories />} />

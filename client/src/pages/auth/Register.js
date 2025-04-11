@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { register as registerUser, demoLogin } from '../../redux/actions/authActions';
+import { register as registerUser, login, demoLogin } from '../../redux/actions/authActions';
 import {
   Avatar,
   Button,
@@ -110,18 +110,25 @@ const Register = () => {
     
     try {
       console.log('Attempting to register with Redux:', { name, email, password: '******' });
-      
+
       // Use the Redux register action
       await dispatch(registerUser({ name, email, password }));
-      
-      // If we get here, registration was successful
-      console.log('Registration successful, showing success message');
-      setSuccess('Registration successful! Please login with your new credentials.');
-      
-      // Redirect to login page after a short delay to show the success message
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+
+      // After registration, log in automatically
+      try {
+        await dispatch(login(email, password));
+        // If login succeeds, redirect to dashboard
+        navigate('/dashboard');
+      } catch (loginErr) {
+        // If automatic login fails, show message and redirect to login page
+        console.log('Registration successful, showing success message');
+        setSuccess('Registration successful! Please login with your new credentials.');
+        
+        // Redirect to login page after a short delay to show the success message
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      }
     } catch (err) {
       console.error('Registration error:', err);
       setError(err.message || 'Registration failed. Please try again.');
@@ -309,9 +316,9 @@ const Register = () => {
                   onClick={() => {
                     // Use the demoLogin action from Redux
                     dispatch(demoLogin());
-                    
+
                     // Navigate to dashboard
-                    navigate('/');
+                    navigate('/dashboard');
                   }}
                 >
                   Register as Demo User

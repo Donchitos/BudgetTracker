@@ -70,7 +70,7 @@ const Login = () => {
       
       // If we get here, login was successful and Redux state is updated
       console.log('Login successful, redirecting to dashboard');
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
       setError(err.message || 'Login failed. Please check your credentials.');
@@ -174,9 +174,9 @@ const Login = () => {
                   onClick={() => {
                     // Use the demoLogin action from Redux
                     dispatch(demoLogin());
-                    
+
                     // Navigate to dashboard
-                    navigate('/');
+                    navigate('/dashboard');
                   }}
                 >
                   Login as Demo User
