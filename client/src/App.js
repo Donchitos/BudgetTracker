@@ -24,6 +24,7 @@ import ImportExport from './pages/ImportExport';
 import Analytics from './pages/Analytics';
 import FinancialPlanning from './pages/FinancialPlanning';
 import Forecast from './pages/Forecast';
+import Settings from './pages/Settings';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -70,6 +71,7 @@ const App = () => {
             <Route path="analytics" element={<Analytics />} />
             <Route path="financial-planning" element={<FinancialPlanning />} />
             <Route path="forecast" element={<Forecast />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Route>
       </Routes>

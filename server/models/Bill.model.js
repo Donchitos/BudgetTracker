@@ -22,11 +22,13 @@ const BillSchema = new mongoose.Schema({
   },
   frequency: {
     type: String,
-    enum: ['one-time', 'weekly', 'biweekly', 'monthly', 'quarterly', 'annually'],
+    enum: ['one-time', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'annually', 'financial-year'],
     default: 'monthly'
   },
   paymentMethod: {
     type: String,
+    enum: ['direct-debit', 'bpay', 'credit-card', 'eftpos', 'cash', 'bank-transfer', 'payid', 'other'],
+    default: 'bpay',
     trim: true
   },
   autoPay: {
@@ -135,7 +137,10 @@ BillSchema.virtual('nextDueDate').get(function() {
       case 'weekly':
         nextDue.setDate(nextDue.getDate() + 7);
         break;
-      case 'biweekly':
+      case 'biweekly': // keep for backward compatibility
+        nextDue.setDate(nextDue.getDate() + 14);
+        break;
+      case 'fortnightly': // Australian term for biweekly
         nextDue.setDate(nextDue.getDate() + 14);
         break;
       case 'monthly':
@@ -146,6 +151,18 @@ BillSchema.virtual('nextDueDate').get(function() {
         break;
       case 'annually':
         nextDue.setFullYear(nextDue.getFullYear() + 1);
+        break;
+      case 'financial-year': // Australian financial year (July 1 to June 30)
+        // If current month is before July, set to July of the same year
+        // If current month is July or later, set to July of the next year
+        if (nextDue.getMonth() < 6) { // 6 = July (0-indexed)
+          nextDue.setMonth(6);
+          nextDue.setDate(1);
+        } else {
+          nextDue.setFullYear(nextDue.getFullYear() + 1);
+          nextDue.setMonth(6);
+          nextDue.setDate(1);
+        }
         break;
       default:
         return currentDueDate;

@@ -3,8 +3,12 @@ const { connectDB, closeDB } = require('./config/db');
 
 // Load environment variables
 require('dotenv').config();
-// Set a flag to use the MongoDB Memory Server for testing
-process.env.USE_MEMORY_DB = 'true';
+// Only use Memory DB in test environment, otherwise try to use real MongoDB
+process.env.USE_MEMORY_DB = process.env.NODE_ENV === 'test' ? 'true' : 'false';
+// Disable automatic sample data creation for new users
+process.env.SKIP_SAMPLE_DATA = 'true';
+// Set persistence flag to ensure data is saved
+process.env.PERSIST_DATA = 'true';
 
 // Connect to database (will use MongoDB Memory Server if connection fails)
 connectDB().then(connected => {

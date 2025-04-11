@@ -1,5 +1,18 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles';
 
+// Define Australian theme colors
+const aussieColors = {
+  green: '#00843D', // Australian green
+  gold: '#FFCD00', // Australian gold
+  navy: '#000F9F', // Australian navy blue
+  red: '#FF0000', // Australian sporting red
+  white: '#FFFFFF',
+  black: '#000000',
+  teal: '#00A896', // Coastal hue
+  sand: '#F4E1C1', // Beach sand color
+  eucalyptus: '#5F8575', // Gum tree color
+};
+
 // Create a theme instance with responsive configuration
 const theme = createTheme({
   breakpoints: {
@@ -21,6 +34,31 @@ const theme = createTheme({
       main: '#dc004e',
       light: '#e33371',
       dark: '#9a0036',
+    },
+    // Australian theme options - users can select this in settings
+    aussie: {
+      primary: {
+        main: aussieColors.green,
+        light: '#3BA46E',
+        dark: '#00662E',
+        contrastText: aussieColors.white,
+      },
+      secondary: {
+        main: aussieColors.gold,
+        light: '#FFD633',
+        dark: '#C9A000',
+        contrastText: aussieColors.black,
+      },
+      background: {
+        default: '#f5f5f5',
+        paper: aussieColors.white,
+        accent: aussieColors.sand,
+      },
+      text: {
+        primary: '#333333',
+        secondary: '#666666',
+        disabled: '#999999',
+      },
     },
     background: {
       default: '#f5f5f5',

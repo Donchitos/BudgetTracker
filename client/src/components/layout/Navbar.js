@@ -31,7 +31,8 @@ const navItems = [
   { title: 'Financial Planning', path: '/financial-planning' },
   { title: 'Forecast', path: '/forecast' },
   { title: 'Budget Templates', path: '/budget-templates' },
-  { title: 'Import/Export', path: '/import-export' }
+  { title: 'Import/Export', path: '/import-export' },
+  { title: 'Settings', path: '/settings' }
 ];
 
 const Navbar = () => {
@@ -87,6 +88,9 @@ const Navbar = () => {
       >
         <MenuItem component={RouterLink} to="/profile" onClick={handleCloseUserMenu}>
           <Typography textAlign="center">Profile</Typography>
+        </MenuItem>
+        <MenuItem component={RouterLink} to="/settings" onClick={handleCloseUserMenu}>
+          <Typography textAlign="center">Settings</Typography>
         </MenuItem>
         <MenuItem onClick={handleLogout}>
           <Typography textAlign="center">Logout</Typography>

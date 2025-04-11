@@ -31,7 +31,39 @@ const UserSchema = new mongoose.Schema({
     default: Date.now
   },
   resetPasswordToken: String,
-  resetPasswordExpire: Date
+  resetPasswordExpire: Date,
+  settings: {
+    currency: {
+      type: String,
+      enum: ['AUD', 'USD', 'EUR', 'GBP', 'NZD'],
+      default: 'AUD'
+    },
+    dateFormat: {
+      type: String,
+      enum: ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'],
+      default: 'DD/MM/YYYY'
+    },
+    theme: {
+      type: String,
+      enum: ['light', 'dark', 'aussie'],
+      default: 'light'
+    },
+    budgetStartDay: {
+      type: Number,
+      min: 1,
+      max: 31,
+      default: 1
+    },
+    country: {
+      type: String,
+      default: 'Australia'
+    },
+    taxYear: {
+      type: String,
+      enum: ['financial', 'calendar'],
+      default: 'financial' // Australian financial year (July-June)
+    }
+  }
 });
 
 // Encrypt password using bcrypt

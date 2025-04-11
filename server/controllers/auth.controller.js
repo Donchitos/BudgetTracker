@@ -18,11 +18,19 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create new user
+    // Create new user with Australian defaults
     user = await User.create({
       name,
       email,
-      password
+      password,
+      settings: {
+        currency: 'AUD',
+        dateFormat: 'DD/MM/YYYY',
+        theme: 'light',
+        budgetStartDay: 1,
+        country: 'Australia',
+        taxYear: 'financial' // Australian financial year (July-June)
+      }
     });
 
     sendTokenResponse(user, 201, res);
