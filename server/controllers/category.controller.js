@@ -7,14 +7,32 @@ const Category = require('../models/Category.model');
  */
 exports.getCategories = async (req, res) => {
   try {
-    const categories = await Category.find({ user: req.user.id }).sort('name');
-
+    // Direct debug output to trace the issue
+    console.log('------- CATEGORY DEBUG START -------');
+    console.log('Getting categories for user with ID:', req.user.id);
+    console.log('User object in request:', JSON.stringify(req.user));
+    
+    if (!req.user || !req.user.id) {
+      console.error('User information missing in request');
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    // Use the findByUserId static method we added to the Category model
+    const categories = await Category.findByUserId(req.user.id);
+    
+    console.log(`Found ${categories.length} categories for user ${req.user.email}`);
+    console.log('------- CATEGORY DEBUG END -------');
+    
     res.status(200).json({
       success: true,
       count: categories.length,
       data: categories
     });
   } catch (err) {
+    console.error('Error fetching categories:', err.message, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -38,8 +56,12 @@ exports.getCategory = async (req, res) => {
       });
     }
 
+    // Convert IDs to strings for consistent comparison
+    const categoryUserId = category.user.toString();
+    const requestUserId = req.user.id.toString();
+
     // Make sure the category belongs to user
-    if (category.user.toString() !== req.user.id) {
+    if (categoryUserId !== requestUserId) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to access this category'
@@ -51,6 +73,7 @@ exports.getCategory = async (req, res) => {
       data: category
     });
   } catch (err) {
+    console.error('Error fetching category:', err.message);
     res.status(500).json({
       success: false,
       message: err.message
@@ -65,8 +88,19 @@ exports.getCategory = async (req, res) => {
  */
 exports.createCategory = async (req, res) => {
   try {
+    // Validate user exists in request
+    if (!req.user || !req.user.id) {
+      console.error('User information missing in request');
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
     // Add user to request body
     req.body.user = req.user.id;
+
+    console.log('Creating category for user:', req.user.id, 'with data:', req.body);
 
     // Check for existing category with the same name for this user
     const existingCategory = await Category.findOne({
@@ -82,12 +116,14 @@ exports.createCategory = async (req, res) => {
     }
 
     const category = await Category.create(req.body);
+    console.log('Category created successfully:', category.name);
 
     res.status(201).json({
       success: true,
       data: category
     });
   } catch (err) {
+    console.error('Error creating category:', err.message);
     res.status(500).json({
       success: false,
       message: err.message
@@ -111,8 +147,12 @@ exports.updateCategory = async (req, res) => {
       });
     }
 
+    // Convert IDs to strings for consistent comparison
+    const categoryUserId = category.user.toString();
+    const requestUserId = req.user.id.toString();
+
     // Make sure the category belongs to user
-    if (category.user.toString() !== req.user.id) {
+    if (categoryUserId !== requestUserId) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this category'
@@ -139,11 +179,14 @@ exports.updateCategory = async (req, res) => {
       runValidators: true
     });
 
+    console.log('Category updated successfully:', category.name);
+
     res.status(200).json({
       success: true,
       data: category
     });
   } catch (err) {
+    console.error('Error updating category:', err.message);
     res.status(500).json({
       success: false,
       message: err.message
@@ -167,21 +210,28 @@ exports.deleteCategory = async (req, res) => {
       });
     }
 
+    // Convert IDs to strings for consistent comparison
+    const categoryUserId = category.user.toString();
+    const requestUserId = req.user.id.toString();
+
     // Make sure the category belongs to user
-    if (category.user.toString() !== req.user.id) {
+    if (categoryUserId !== requestUserId) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this category'
       });
     }
 
-    await category.remove();
+    // Use the newer deleteOne approach instead of category.remove()
+    await Category.deleteOne({ _id: req.params.id });
+    console.log('Category deleted successfully:', category.name);
 
     res.status(200).json({
       success: true,
       data: {}
     });
   } catch (err) {
+    console.error('Error deleting category:', err.message);
     res.status(500).json({
       success: false,
       message: err.message

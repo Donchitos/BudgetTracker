@@ -56,4 +56,9 @@ const CategorySchema = new mongoose.Schema({
 // Prevent duplicate category names for the same user
 CategorySchema.index({ name: 1, user: 1 }, { unique: true });
 
+// Create static method to find categories by user ID
+CategorySchema.statics.findByUserId = function(userId) {
+  return this.find({ user: userId }).sort('name');
+};
+
 module.exports = mongoose.model('Category', CategorySchema);

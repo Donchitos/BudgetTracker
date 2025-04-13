@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
@@ -15,26 +15,15 @@ import {
   MenuItem,
   TextField,
   InputAdornment,
-  Drawer,
-  List,
-  ListItem,
   ListItemIcon,
-  ListItemText,
-  ListItemButton,
-  Collapse,
-  Breadcrumbs,
-  Fade,
-  useScrollTrigger,
-  Slide,
   Badge,
   Divider,
   useTheme
 } from '@mui/material';
+
+// Icons - only import what we use
 import MenuIcon from '@mui/icons-material/Menu';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
-import { logout } from '../../redux/actions/authActions';
-
-// Import icons for navigation items
 import PaymentsIcon from '@mui/icons-material/Payments';
 import CategoryIcon from '@mui/icons-material/Category';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -50,14 +39,10 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SearchIcon from '@mui/icons-material/Search';
-import HomeIcon from '@mui/icons-material/Home';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import HelpIcon from '@mui/icons-material/Help';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import MenuOpenIcon from '@mui/icons-material/MenuOpen';
+
+import { logout } from '../../redux/actions/authActions';
 
 // Group navigation items into logical sections with icons for better usability
 const mainNavItems = [
@@ -85,28 +70,110 @@ const utilityNavItems = [
   { title: 'Settings', path: '/dashboard/settings', priority: 'medium', icon: <SettingsIcon fontSize="small" /> }
 ];
 
-// Combine all navigation items for the mobile menu
-const allNavItems = [
-  ...mainNavItems,
-  ...reportingNavItems,
-  ...planningNavItems,
-  ...utilityNavItems
-];
+// Menu category header component - memoized for performance
+const MenuCategoryHeader = memo(({ title, theme }) => (
+  <MenuItem 
+    sx={{ 
+      backgroundImage: `linear-gradient(to right, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+      borderRadius: '4px', 
+      mb: 1, 
+      mt: 2,
+      color: 'white',
+      py: 1.5,
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      display: 'flex',
+      alignItems: 'center'
+    }}
+  >
+    <Box sx={{ 
+      width: 4, 
+      height: 16, 
+      backgroundColor: theme.palette.secondary.main,
+      borderRadius: 4,
+      mr: 1.5
+    }} />
+    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
+      {title}
+    </Typography>
+  </MenuItem>
+));
 
-// Hide navbar on scroll down, show on scroll up
-function HideOnScroll(props) {
-  const { children } = props;
-  const trigger = useScrollTrigger({
-    threshold: 100,
-  });
+// Menu item component - memoized for performance
+const NavMenuItem = memo(({ item, isActive, handleCloseNavMenu }) => (
+  <MenuItem
+    component={RouterLink}
+    to={item.path}
+    onClick={handleCloseNavMenu}
+    selected={isActive(item.path)}
+    sx={{
+      borderRadius: 1,
+      mx: 0.5,
+      mb: 0.5,
+      py: 1.5,
+      backgroundColor: isActive(item.path) ? 'primary.main' : 'transparent',
+      position: 'relative',
+      transition: 'all 0.2s ease',
+      '&::before': isActive(item.path) ? {
+        content: '""',
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        height: '100%',
+        width: '4px',
+        backgroundColor: 'secondary.main',
+        borderRadius: '4px',
+        transition: 'all 0.2s ease'
+      } : {},
+      '&:hover': {
+        backgroundColor: isActive(item.path) ? 'primary.main' : 'rgba(25, 118, 210, 0.08)',
+      }
+    }}
+  >
+    <ListItemIcon sx={{ 
+      minWidth: 36, 
+      color: isActive(item.path) ? 'white' : 'inherit',
+      mr: 1.5 
+    }}>
+      {item.icon}
+    </ListItemIcon>
+    <Typography sx={{ 
+      fontWeight: isActive(item.path) ? 700 : 400,
+      color: isActive(item.path) ? 'white' : 'inherit'
+    }}>
+      {item.title}
+    </Typography>
+  </MenuItem>
+));
 
-  return (
-    <Slide appear={false} direction="down" in={!trigger}>
-      {children}
-    </Slide>
-  );
-}
+// Desktop nav button - memoized for performance
+const DesktopNavButton = memo(({ item, isActive, handleCloseNavMenu }) => (
+  <Button
+    component={RouterLink}
+    to={item.path}
+    onClick={handleCloseNavMenu}
+    color="inherit"
+    sx={{
+      my: 0.5,
+      mx: 0.5,
+      px: 1.5,
+      borderRadius: 2,
+      fontSize: '0.875rem',
+      minWidth: 'auto',
+      textTransform: 'none',
+      transition: 'all 0.2s ease',
+      fontWeight: isActive(item.path) ? 700 : 500,
+      backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.15)' : 'transparent',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 0.75
+    }}
+  >
+    {item.icon}
+    {item.title}
+  </Button>
+));
 
+// Main Navbar component
 const Navbar = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector(state => state.auth);
@@ -115,128 +182,33 @@ const Navbar = () => {
   
   const [anchorElNav, setAnchorElNav] = useState(null);
   const [anchorElUser, setAnchorElUser] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [reportingExpanded, setReportingExpanded] = useState(false);
-  const [planningExpanded, setPlanningExpanded] = useState(false);
   const [notificationCount] = useState(2); // For future notification implementation
 
-  // Helper to check if a path is active
-  const isActive = (path) => {
+  // Helper to check if a path is active - memoized
+  const isActive = React.useCallback((path) => {
     return location.pathname === path;
-  };
+  }, [location.pathname]);
 
-  // Check if the current page is in a particular section
-  const isInSection = (paths) => {
-    return paths.some(path => location.pathname.startsWith(path));
-  };
-
-  // Generate breadcrumbs based on current path
-  const getBreadcrumbs = () => {
-    if (location.pathname === '/') return null;
-    
-    const pathSegments = location.pathname.split('/').filter(Boolean);
-    if (pathSegments.length === 0) return null;
-
-    return (
-      <Breadcrumbs
-        aria-label="breadcrumb"
-        sx={{
-          display: { xs: 'none', md: 'flex' },
-          position: 'absolute',
-          bottom: -30,
-          left: 24,
-          color: 'rgba(255,255,255,0.7)',
-          '& .MuiBreadcrumbs-separator': {
-            color: 'rgba(255,255,255,0.5)'
-          }
-        }}
-      >
-        <Typography
-          component={RouterLink}
-          to="/"
-          color="inherit"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            textDecoration: 'none',
-            '&:hover': { textDecoration: 'underline' }
-          }}
-        >
-          <HomeIcon fontSize="small" sx={{ mr: 0.5 }} />
-          Home
-        </Typography>
-        
-        {pathSegments.map((segment, index) => {
-          const path = `/${pathSegments.slice(0, index + 1).join('/')}`;
-          const isLast = index === pathSegments.length - 1;
-          
-          // Pretty-print the segment name
-          const segmentName = segment
-            .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-            
-          return isLast ? (
-            <Typography key={path} color="text.primary">
-              {segmentName}
-            </Typography>
-          ) : (
-            <Typography
-              key={path}
-              component={RouterLink}
-              to={path}
-              color="inherit"
-              sx={{
-                textDecoration: 'none',
-                '&:hover': { textDecoration: 'underline' }
-              }}
-            >
-              {segmentName}
-            </Typography>
-          );
-        })}
-      </Breadcrumbs>
-    );
-  };
-
-  const handleOpenNavMenu = (event) => {
+  const handleOpenNavMenu = React.useCallback((event) => {
     setAnchorElNav(event.currentTarget);
-  };
-  
-  const handleOpenUserMenu = (event) => {
+  }, []);
+  const handleOpenUserMenu = React.useCallback((event) => {
     setAnchorElUser(event.currentTarget);
-  };
+  }, []);
+  
 
-  const toggleDrawer = () => {
-    setDrawerOpen(!drawerOpen);
-  };
-
-  const handleCloseNavMenu = () => {
+  const handleCloseNavMenu = React.useCallback(() => {
     setAnchorElNav(null);
-  };
+  }, []);
 
-  const handleCloseUserMenu = () => {
+  const handleCloseUserMenu = React.useCallback(() => {
     setAnchorElUser(null);
-  };
+  }, []);
 
-  const handleLogout = () => {
+  const handleLogout = React.useCallback(() => {
     handleCloseUserMenu();
     dispatch(logout());
-  };
-
-  const handleSearchChange = (event) => {
-    setSearchValue(event.target.value);
-  };
-
-  const handleSearchFocus = () => {
-    setSearchFocused(true);
-  };
-
-  const handleSearchBlur = () => {
-    setSearchFocused(false);
-  };
+  }, [handleCloseUserMenu, dispatch]);
 
   // Keyboard navigation support
   useEffect(() => {
@@ -272,7 +244,8 @@ const Navbar = () => {
     };
   }, [isAuthenticated, location]);
 
-  const authLinks = (
+  // Memoized components for better performance
+  const authLinks = React.useMemo(() => (
     <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center' }}>
       {/* Help button */}
       <Tooltip title="Help & Documentation" arrow>
@@ -369,9 +342,9 @@ const Navbar = () => {
         </MenuItem>
       </Menu>
     </Box>
-  );
+  ), [handleOpenUserMenu, notificationCount, theme.palette.secondary.main, user, anchorElUser, handleCloseUserMenu, handleLogout]);
 
-  const guestLinks = (
+  const guestLinks = React.useMemo(() => (
     <Box sx={{ flexGrow: 0, display: 'flex' }}>
       <Button
         component={RouterLink}
@@ -405,14 +378,186 @@ const Navbar = () => {
         Register
       </Button>
     </Box>
-  );
+  ), []);
+
+  // Mobile menu with memoized rendering for better performance
+  const renderMobileMenu = React.useMemo(() => {
+    if (!isAuthenticated) return null;
+    
+    return (
+      <>
+        <MenuCategoryHeader title="Main" theme={theme} />
+        
+        {mainNavItems.map((item) => (
+          <NavMenuItem 
+            key={item.title} 
+            item={item} 
+            isActive={isActive} 
+            handleCloseNavMenu={handleCloseNavMenu} 
+          />
+        ))}
+        
+        <MenuCategoryHeader title="Reports & Analytics" theme={theme} />
+        
+        {reportingNavItems.map((item) => (
+          <NavMenuItem 
+            key={item.title} 
+            item={item} 
+            isActive={isActive} 
+            handleCloseNavMenu={handleCloseNavMenu} 
+          />
+        ))}
+        
+        <MenuCategoryHeader title="Planning" theme={theme} />
+        
+        {planningNavItems.map((item) => (
+          <NavMenuItem 
+            key={item.title} 
+            item={item} 
+            isActive={isActive} 
+            handleCloseNavMenu={handleCloseNavMenu} 
+          />
+        ))}
+        
+        <MenuCategoryHeader title="Utilities" theme={theme} />
+        
+        {utilityNavItems.map((item) => (
+          <NavMenuItem 
+            key={item.title} 
+            item={item} 
+            isActive={isActive} 
+            handleCloseNavMenu={handleCloseNavMenu} 
+          />
+        ))}
+      </>
+    );
+  }, [isAuthenticated, theme, isActive, handleCloseNavMenu]);
+
+  // Desktop navigation sections with memoized rendering
+  const renderDesktopNav = React.useMemo(() => {
+    if (!isAuthenticated) return null;
+    
+    return (
+      <>
+        {/* Main navigation items */}
+        <Box sx={{
+          display: 'flex',
+          borderRight: '1px solid rgba(255,255,255,0.2)',
+          pr: 1,
+          mr: 1,
+          '& .MuiButton-root:hover': {
+            backgroundColor: 'rgba(255,255,255,0.1)'
+          }
+        }}>
+          {mainNavItems.map((item, index) => (
+            <Tooltip
+              key={item.title}
+              title={`${item.title} (Alt+${index+2})`}
+              arrow
+              placement="bottom"
+            >
+              <span> {/* Wrapper to handle tooltip on disabled button */}
+                <DesktopNavButton 
+                  item={item} 
+                  isActive={isActive} 
+                  handleCloseNavMenu={handleCloseNavMenu} 
+                />
+              </span>
+            </Tooltip>
+          ))}
+        </Box>
+        
+        {/* Reporting section */}
+        <Box sx={{
+          display: 'flex',
+          borderRight: '1px solid rgba(255,255,255,0.2)',
+          pr: 1,
+          mr: 1,
+          '& .MuiButton-root:hover': {
+            backgroundColor: 'rgba(255,255,255,0.1)'
+          }
+        }}>
+          {reportingNavItems.map((item) => (
+            <Tooltip
+              key={item.title}
+              title={`${item.title}`}
+              arrow
+              placement="bottom"
+            >
+              <span>
+                <DesktopNavButton 
+                  item={item} 
+                  isActive={isActive} 
+                  handleCloseNavMenu={handleCloseNavMenu} 
+                />
+              </span>
+            </Tooltip>
+          ))}
+        </Box>
+        
+        {/* Planning section */}
+        <Box sx={{
+          display: 'flex',
+          borderRight: '1px solid rgba(255,255,255,0.2)',
+          pr: 1,
+          mr: 1,
+          '& .MuiButton-root:hover': {
+            backgroundColor: 'rgba(255,255,255,0.1)'
+          }
+        }}>
+          {planningNavItems.map((item) => (
+            <Tooltip
+              key={item.title}
+              title={`${item.title}`}
+              arrow
+              placement="bottom"
+            >
+              <span>
+                <DesktopNavButton 
+                  item={item} 
+                  isActive={isActive} 
+                  handleCloseNavMenu={handleCloseNavMenu} 
+                />
+              </span>
+            </Tooltip>
+          ))}
+        </Box>
+        
+        {/* Utility items */}
+        <Box sx={{
+          display: 'flex',
+          '& .MuiButton-root:hover': {
+            backgroundColor: 'rgba(255,255,255,0.1)'
+          }
+        }}>
+          {utilityNavItems.map((item) => (
+            <Tooltip
+              key={item.title}
+              title={`${item.title}`}
+              arrow
+              placement="bottom"
+            >
+              <span>
+                <DesktopNavButton 
+                  item={item} 
+                  isActive={isActive} 
+                  handleCloseNavMenu={handleCloseNavMenu} 
+                />
+              </span>
+            </Tooltip>
+          ))}
+        </Box>
+      </>
+    );
+  }, [isAuthenticated, isActive, handleCloseNavMenu]);
 
   return (
     <AppBar
       position="fixed"
-      elevation={2}
+      elevation={4}
       sx={{
-        background: theme.palette.primary.main,
+        background: `linear-gradient(to right, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
       }}
     >
       <Container maxWidth="xl">
@@ -480,14 +625,15 @@ const Navbar = () => {
               Ctrl+/ for quick search
             </Typography>
           </Box>
+          
           {/* Logo for desktop */}
           <Box
             component={RouterLink}
             to={isAuthenticated ? "/dashboard" : "/"}
             sx={{
               display: { xs: 'none', lg: 'flex' },
-              alignItems: 'center',
               flexShrink: 0,
+              alignItems: 'center',
               textDecoration: 'none',
               color: 'inherit',
               '&:hover': { opacity: 0.9 }
@@ -544,141 +690,29 @@ const Navbar = () => {
               sx={{
                 display: { xs: 'block', lg: 'none' },
                 '& .MuiPaper-root': {
-                  maxHeight: '80vh',
+                  maxHeight: '85vh',
                   width: 280,
                   borderRadius: 2,
-                  mt: 1
+                  mt: 1,
+                  boxShadow: '0px 5px 15px rgba(0,0,0,0.2)',
+                  animation: 'fadeIn 0.2s ease-in-out'
+                },
+                '& .MuiList-root': {
+                  padding: 1
+                },
+                '@keyframes fadeIn': {
+                  '0%': {
+                    opacity: 0,
+                    transform: 'translateY(-10px)'
+                  },
+                  '100%': {
+                    opacity: 1,
+                    transform: 'translateY(0)'
+                  }
                 }
               }}
             >
-              {isAuthenticated && (
-                <>
-                  {/* Group menu items by category */}
-                  <MenuItem sx={{ backgroundColor: 'rgba(25, 118, 210, 0.12)', borderRadius: '4px', mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
-                      Main
-                    </Typography>
-                  </MenuItem>
-                  
-                  {mainNavItems.map((item) => (
-                    <MenuItem
-                      key={item.title}
-                      onClick={handleCloseNavMenu}
-                      component={RouterLink}
-                      to={item.path}
-                      selected={isActive(item.path)}
-                      sx={{
-                        borderRadius: 1,
-                        mx: 0.5,
-                        mb: 0.5,
-                        py: 1,
-                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                        }
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
-                        {item.icon}
-                      </ListItemIcon>
-                      <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
-                    </MenuItem>
-                  ))}
-                  
-                  <MenuItem sx={{ backgroundColor: 'rgba(25, 118, 210, 0.12)', borderRadius: '4px', mb: 1, mt: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
-                      Reports & Analytics
-                    </Typography>
-                  </MenuItem>
-                  
-                  {reportingNavItems.map((item) => (
-                    <MenuItem
-                      key={item.title}
-                      onClick={handleCloseNavMenu}
-                      component={RouterLink}
-                      to={item.path}
-                      selected={isActive(item.path)}
-                      sx={{
-                        borderRadius: 1,
-                        mx: 0.5,
-                        mb: 0.5,
-                        py: 1,
-                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                        }
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
-                        {item.icon}
-                      </ListItemIcon>
-                      <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
-                    </MenuItem>
-                  ))}
-                  
-                  <MenuItem sx={{ backgroundColor: 'rgba(25, 118, 210, 0.12)', borderRadius: '4px', mb: 1, mt: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
-                      Planning
-                    </Typography>
-                  </MenuItem>
-                  
-                  {planningNavItems.map((item) => (
-                    <MenuItem
-                      key={item.title}
-                      onClick={handleCloseNavMenu}
-                      component={RouterLink}
-                      to={item.path}
-                      selected={isActive(item.path)}
-                      sx={{
-                        borderRadius: 1,
-                        mx: 0.5,
-                        mb: 0.5,
-                        py: 1,
-                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                        }
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
-                        {item.icon}
-                      </ListItemIcon>
-                      <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
-                    </MenuItem>
-                  ))}
-                  
-                  <MenuItem sx={{ backgroundColor: 'rgba(25, 118, 210, 0.12)', borderRadius: '4px', mb: 1, mt: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', width: '100%' }}>
-                      Utilities
-                    </Typography>
-                  </MenuItem>
-                  
-                  {utilityNavItems.map((item) => (
-                    <MenuItem
-                      key={item.title}
-                      onClick={handleCloseNavMenu}
-                      component={RouterLink}
-                      to={item.path}
-                      selected={isActive(item.path)}
-                      sx={{
-                        borderRadius: 1,
-                        mx: 0.5,
-                        mb: 0.5,
-                        py: 1,
-                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                        }
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 36, color: isActive(item.path) ? 'primary.light' : 'inherit' }}>
-                        {item.icon}
-                      </ListItemIcon>
-                      <Typography sx={{ fontWeight: isActive(item.path) ? 600 : 400 }}>{item.title}</Typography>
-                    </MenuItem>
-                  ))}
-                </>
-              )}
+              {renderMobileMenu}
             </Menu>
           </Box>
 
@@ -723,186 +757,7 @@ const Navbar = () => {
               borderRadius: '4px'
             }
           }}>
-            {isAuthenticated && (
-              <>
-                {/* Main navigation items */}
-                <Box sx={{
-                  display: 'flex',
-                  borderRight: '1px solid rgba(255,255,255,0.2)',
-                  pr: 1,
-                  mr: 1,
-                  '& .MuiButton-root:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.1)'
-                  }
-                }}>
-                  {mainNavItems.map((item, index) => (
-                    <Tooltip
-                      key={item.title}
-                      title={`${item.title} (Alt+${index+2})`}
-                      arrow
-                      placement="bottom"
-                    >
-                    <Button
-                      key={item.title}
-                      component={RouterLink}
-                      to={item.path}
-                      onClick={handleCloseNavMenu}
-                      color="inherit"
-                      sx={{
-                        my: 0.5,
-                        mx: 0.5,
-                        px: 1.5,
-                        borderRadius: 2,
-                        fontSize: '0.875rem',
-                        minWidth: 'auto',
-                        textTransform: 'none',
-                        fontWeight: isActive(item.path) ? 700 : 500,
-                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.15)' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.75
-                      }}
-                    >
-                      {item.icon}
-                      {item.title}
-                    </Button>
-                    </Tooltip>
-                  ))}
-                </Box>
-                
-                {/* Reporting section */}
-                <Box sx={{
-                  display: 'flex',
-                  borderRight: '1px solid rgba(255,255,255,0.2)',
-                  pr: 1,
-                  mr: 1,
-                  '& .MuiButton-root:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.1)'
-                  }
-                }}>
-                  {reportingNavItems.map((item, index) => (
-                    <Tooltip
-                      key={item.title}
-                      title={`${item.title}`}
-                      arrow
-                      placement="bottom"
-                    >
-                    <Button
-                      key={item.title}
-                      component={RouterLink}
-                      to={item.path}
-                      onClick={handleCloseNavMenu}
-                      color="inherit"
-                      sx={{
-                        my: 0.5,
-                        mx: 0.5,
-                        px: 1.5,
-                        borderRadius: 2,
-                        fontSize: '0.875rem',
-                        minWidth: 'auto',
-                        textTransform: 'none',
-                        fontWeight: isActive(item.path) ? 700 : 500,
-                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.15)' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.75
-                      }}
-                    >
-                      {item.icon}
-                      {item.title}
-                    </Button>
-                    </Tooltip>
-                  ))}
-                </Box>
-                
-                {/* Planning section */}
-                <Box sx={{
-                  display: 'flex',
-                  borderRight: '1px solid rgba(255,255,255,0.2)',
-                  pr: 1,
-                  mr: 1,
-                  '& .MuiButton-root:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.1)'
-                  }
-                }}>
-                  {planningNavItems.map((item, index) => (
-                    <Tooltip
-                      key={item.title}
-                      title={`${item.title}`}
-                      arrow
-                      placement="bottom"
-                    >
-                    <Button
-                      key={item.title}
-                      component={RouterLink}
-                      to={item.path}
-                      onClick={handleCloseNavMenu}
-                      color="inherit"
-                      sx={{
-                        my: 0.5,
-                        mx: 0.5,
-                        px: 1.5,
-                        borderRadius: 2,
-                        fontSize: '0.875rem',
-                        minWidth: 'auto',
-                        textTransform: 'none',
-                        fontWeight: isActive(item.path) ? 700 : 500,
-                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.15)' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.75
-                      }}
-                    >
-                      {item.icon}
-                      {item.title}
-                    </Button>
-                    </Tooltip>
-                  ))}
-                </Box>
-                
-                {/* Utility items */}
-                <Box sx={{
-                  display: 'flex',
-                  '& .MuiButton-root:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.1)'
-                  }
-                }}>
-                  {utilityNavItems.map((item, index) => (
-                    <Tooltip
-                      key={item.title}
-                      title={`${item.title}`}
-                      arrow
-                      placement="bottom"
-                    >
-                    <Button
-                      key={item.title}
-                      component={RouterLink}
-                      to={item.path}
-                      onClick={handleCloseNavMenu}
-                      color="inherit"
-                      sx={{
-                        my: 0.5,
-                        mx: 0.5,
-                        px: 1.5,
-                        borderRadius: 2,
-                        fontSize: '0.875rem',
-                        minWidth: 'auto',
-                        textTransform: 'none',
-                        fontWeight: isActive(item.path) ? 700 : 500,
-                        backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.15)' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.75
-                      }}
-                    >
-                      {item.icon}
-                      {item.title}
-                    </Button>
-                    </Tooltip>
-                  ))}
-                </Box>
-              </>
-            )}
+            {renderDesktopNav}
           </Box>
 
           <Box sx={{ 
